@@ -1,0 +1,23 @@
+# Quartus build artifacts / generated output
+output_files/
+db/
+incremental_db/
+simulation/
+greybox_tmp/
+*.qws
+*.rpt
+*.summary
+*.pin
+*.done
+*.sof
+*.pof
+*.jdi
+*.smsg
+*.sld
+*.qarlog
+*.qarreport
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp

@@ -38,33 +38,39 @@ module mips (
     logic [4:0]  ID_rs, ID_rt, ID_rd;
     logic        ID_RegDst, ID_RegWrite, ID_MemWrite, ID_MemRead, ID_ALUSrc, ID_MemtoReg;
     logic [1:0]  ID_ALUOp;
+    logic        ID_Branch, ID_Jump, ID_BranchNE;
+    logic [31:0] jumpaddress;
 
     // IDEX pipeline registers
     logic [31:0] IDEX_pc4, IDEX_rd1, IDEX_rd2, IDEX_extend;
     logic [4:0]  IDEX_rt, IDEX_rd;
     logic        IDEX_RegDst, IDEX_RegWrite, IDEX_MemWrite, IDEX_MemRead, IDEX_ALUSrc, IDEX_MemtoReg;
     logic [1:0]  IDEX_ALUOp;
+    logic        IDEX_Branch, IDEX_BranchNE;
 
     // EX
     logic [31:0] alu1, alu2;
-    logic [31:0] EX_ALUOut, EX_extend, EX_offset, EX_rd1, EX_rd2, EX_pc4;
+    logic [31:0] EX_ALUOut, EX_extend, EX_offset, EX_rd1, EX_rd2, EX_pc4, EX_btgt;
     logic [5:0]  EX_funct;
     logic [3:0]  ALUctl;
     logic [1:0]  EX_ALUOp;
     logic        overflow, EX_Zero;
     logic [4:0]  EX_rt, EX_rd, EX_RegRd;
     logic        EX_RegDst, EX_RegWrite, EX_MemWrite, EX_MemRead, EX_ALUSrc, EX_MemtoReg;
+    logic        EX_Branch, EX_BranchNE;
 
     // EXMEM pipeline registers
     logic [31:0] EXMEM_btgt, EXMEM_ALUOut, EXMEM_rd2;
     logic        EXMEM_Zero;
     logic [4:0]  EXMEM_RegRd;
     logic        EXMEM_RegWrite, EXMEM_MemWrite, EXMEM_MemRead, EXMEM_MemtoReg;
+    logic        EXMEM_Branch, EXMEM_BranchNE;
 
     // MEM
-    logic [31:0] MEM_memout, MEM_ALUOut, MEM_rd2;
+    logic [31:0] MEM_memout, MEM_ALUOut, MEM_rd2, MEM_btgt;
     logic [4:0]  MEM_RegRd;
     logic        MEM_Zero, MEM_RegWrite, MEM_MemWrite, MEM_MemRead, MEM_MemtoReg;
+    logic        MEM_Branch, MEM_BranchNE, MEM_PCSrc;
 
     // MEMWB pipeline registers
     logic [31:0] MEMWB_memout, MEMWB_ALUOut;
@@ -88,16 +94,34 @@ module mips (
     end
 
     // next-state logic
-    assign IF_pc_next = IF_pc4;
+    // jump wins immediately (resolved this cycle in ID, from the instruction currently in ID);
+    // otherwise a branch resolved several cycles ago in MEM can redirect the PC;
+    // otherwise just go sequential.
+    assign IF_pc_next = ID_Jump    ? jumpaddress :
+                         MEM_PCSrc ? MEM_btgt     :
+                         IF_pc4;
     assign IF_pc4      = IF_pc + 32'd4;
 
     // output logic
     assign pc_mips = IF_pc;
 
     // **** SAVE TO PIPELINE REGISTERS
-    always_ff @(posedge clock_mips) begin
-        IFID_pc4   <= IF_pc4;            //1
-        IFID_instr <= instruction_mips;  //2
+    // NOTE: reset added here (and on every pipeline register below) because
+    // IF_pc_next now depends on ID_Jump/MEM_PCSrc, which trace back through
+    // these registers. Without a defined reset value, they start unknown in
+    // simulation (and undefined on real hardware) until real instructions
+    // have flowed all the way through the pipeline, corrupting the very
+    // first PC-select decision. The original branch-free version never
+    // needed this, since IF_pc_next was always just IF_pc4 - independent of
+    // every other pipeline register.
+    always_ff @(posedge clock_mips or posedge reset_mips) begin
+        if (reset_mips) begin
+            IFID_pc4   <= 32'h0;
+            IFID_instr <= 32'h0;
+        end else begin
+            IFID_pc4   <= IF_pc4;            //1
+            IFID_instr <= instruction_mips;  //2
+        end
     end
 
     //----------------------------------------------------
@@ -105,9 +129,9 @@ module mips (
     //----------------------------------------------------
 
     // **RETRIEVE FROM PIPELINE REGISTERS
+    assign ID_pc4   = IFID_pc4;   // needed for jump target computation
     assign ID_instr = IFID_instr; //3
 
-    // ---- your code (ID stage) ----
     assign ID_op = ID_instr[31:26]; //4
     assign ID_rs = ID_instr[25:21]; //5
     assign ID_rt = ID_instr[20:16]; //6
@@ -125,6 +149,8 @@ module mips (
         ID_ALUSrc   = 1'b0;  //14
         ID_MemtoReg = 1'b0;  //15
         ID_ALUOp    = 2'b00; //16
+        ID_Branch   = 1'b0;
+        ID_Jump     = 1'b0;
 
         if (ID_op == 6'b000000) begin
             ID_RegDst   = 1'b1;
@@ -138,26 +164,60 @@ module mips (
         end else if (ID_op == 6'b101011) begin
             ID_MemWrite = 1'b1;
             ID_ALUSrc   = 1'b1;
+        end else if (ID_op == 6'b000100 || ID_op == 6'b000101) begin // beq / bne
+            ID_Branch = 1'b1;
+            ID_ALUOp  = 2'b01; // tells EX stage: force subtract
+        end else if (ID_op == 6'b000010) begin // j
+            ID_Jump = 1'b1;
         end
     end
+
+    // beq vs bne share the same "Branch" flag; this bit says which comparison
+    // (op[0]=0 -> beq/branch-if-equal, op[0]=1 -> bne/branch-if-not-equal)
+    assign ID_BranchNE = ID_op[0];
+
+    // jump target = upper 4 bits of PC+4, concatenated with the 26-bit
+    // instruction field, shifted left 2 for word alignment
+    assign jumpaddress = {ID_pc4[31:28], ID_instr[25:0], 2'b00};
 
     assign ID_rd1 = Registers[ID_rs]; //17
     assign ID_rd2 = Registers[ID_rt]; //18
 
     // **** SAVE TO PIPELINE REGISTERS
-    always_ff @(posedge clock_mips) begin
-        IDEX_rd1      <= ID_rd1;      //19
-        IDEX_rd2      <= ID_rd2;      //20
-        IDEX_extend   <= ID_extend;   //21
-        IDEX_rt       <= ID_rt;       //22
-        IDEX_rd       <= ID_rd;       //23
-        IDEX_RegDst   <= ID_RegDst;   //24
-        IDEX_RegWrite <= ID_RegWrite; //25
-        IDEX_MemWrite <= ID_MemWrite; //26
-        IDEX_MemRead  <= ID_MemRead;  //27
-        IDEX_ALUSrc   <= ID_ALUSrc;   //28
-        IDEX_MemtoReg <= ID_MemtoReg; //29
-        IDEX_ALUOp    <= ID_ALUOp;    //30
+    always_ff @(posedge clock_mips or posedge reset_mips) begin
+        if (reset_mips) begin
+            IDEX_rd1      <= 32'h0;
+            IDEX_rd2      <= 32'h0;
+            IDEX_extend   <= 32'h0;
+            IDEX_rt       <= 5'h0;
+            IDEX_rd       <= 5'h0;
+            IDEX_RegDst   <= 1'b0;
+            IDEX_RegWrite <= 1'b0;
+            IDEX_MemWrite <= 1'b0;
+            IDEX_MemRead  <= 1'b0;
+            IDEX_ALUSrc   <= 1'b0;
+            IDEX_MemtoReg <= 1'b0;
+            IDEX_ALUOp    <= 2'b00;
+            IDEX_pc4      <= 32'h0;
+            IDEX_Branch   <= 1'b0;
+            IDEX_BranchNE <= 1'b0;
+        end else begin
+            IDEX_rd1      <= ID_rd1;      //19
+            IDEX_rd2      <= ID_rd2;      //20
+            IDEX_extend   <= ID_extend;   //21
+            IDEX_rt       <= ID_rt;       //22
+            IDEX_rd       <= ID_rd;       //23
+            IDEX_RegDst   <= ID_RegDst;   //24
+            IDEX_RegWrite <= ID_RegWrite; //25
+            IDEX_MemWrite <= ID_MemWrite; //26
+            IDEX_MemRead  <= ID_MemRead;  //27
+            IDEX_ALUSrc   <= ID_ALUSrc;   //28
+            IDEX_MemtoReg <= ID_MemtoReg; //29
+            IDEX_ALUOp    <= ID_ALUOp;    //30
+            IDEX_pc4      <= ID_pc4;
+            IDEX_Branch   <= ID_Branch;
+            IDEX_BranchNE <= ID_BranchNE;
+        end
     end
 
     //----------------------------------------------------
@@ -177,27 +237,37 @@ module mips (
     assign EX_MemWrite  = IDEX_MemWrite; //40
     assign EX_MemRead   = IDEX_MemRead;  //41
     assign EX_MemtoReg  = IDEX_MemtoReg; //42
+    assign EX_pc4        = IDEX_pc4;
+    assign EX_Branch     = IDEX_Branch;
+    assign EX_BranchNE   = IDEX_BranchNE;
 
-    // ---- your code (EX stage) ----
     assign EX_funct = EX_extend[5:0]; //43
     assign alu1 = EX_rd1;             //44
     assign alu2 = EX_ALUSrc ? EX_extend : EX_rd2; //45
 
     always_comb begin
-        ALUctl = 4'b0010; //46 (default: add)
-        if (EX_ALUOp == 2'b10) begin
-            case (EX_funct)
-                6'b100000: ALUctl = 4'b0010; // add
-                6'b100010: ALUctl = 4'b0110; // sub
-                6'b100100: ALUctl = 4'b0000; // and
-                6'b100101: ALUctl = 4'b0001; // or
-                6'b101010: ALUctl = 4'b0111; // slt
-                default:   ALUctl = 4'b0010;
-            endcase
-        end
+        ALUctl = 4'b0010; //46 (default: add - used for lw/sw address calc)
+        case (EX_ALUOp)
+            2'b01: ALUctl = 4'b0110; // beq/bne: force subtract, so Zero tells us rs==rt
+            2'b10: begin             // R-type: decode from funct field
+                case (EX_funct)
+                    6'b100000: ALUctl = 4'b0010; // add
+                    6'b100010: ALUctl = 4'b0110; // sub
+                    6'b100100: ALUctl = 4'b0000; // and
+                    6'b100101: ALUctl = 4'b0001; // or
+                    6'b101010: ALUctl = 4'b0111; // slt
+                    default:   ALUctl = 4'b0010;
+                endcase
+            end
+            default: ALUctl = 4'b0010; // 00: add (lw/sw)
+        endcase
     end
 
     assign EX_RegRd = EX_RegDst ? EX_rd : EX_rt; //47
+
+    // branch target: PC+4 plus the sign-extended, word-aligned immediate offset
+    assign EX_offset = {EX_extend[29:0], 2'b00}; // EX_extend << 2
+    assign EX_btgt    = EX_pc4 + EX_offset;
 
     // The component ALU_32 produces (ALUresult, overflow, Zero)
     //---- Component instantiation ----
@@ -211,14 +281,32 @@ module mips (
     );
 
     // **** SAVE TO PIPELINE REGISTERS
-    always_ff @(posedge clock_mips) begin
-        EXMEM_ALUOut   <= EX_ALUOut;   //48
-        EXMEM_rd2      <= EX_rd2;      //49
-        EXMEM_RegRd    <= EX_RegRd;    //50
-        EXMEM_RegWrite <= EX_RegWrite; //51
-        EXMEM_MemWrite <= EX_MemWrite; //52
-        EXMEM_MemRead  <= EX_MemRead;  //53
-        EXMEM_MemtoReg <= EX_MemtoReg; //54
+    always_ff @(posedge clock_mips or posedge reset_mips) begin
+        if (reset_mips) begin
+            EXMEM_ALUOut   <= 32'h0;
+            EXMEM_rd2      <= 32'h0;
+            EXMEM_RegRd    <= 5'h0;
+            EXMEM_RegWrite <= 1'b0;
+            EXMEM_MemWrite <= 1'b0;
+            EXMEM_MemRead  <= 1'b0;
+            EXMEM_MemtoReg <= 1'b0;
+            EXMEM_btgt     <= 32'h0;
+            EXMEM_Zero     <= 1'b0;
+            EXMEM_Branch   <= 1'b0;
+            EXMEM_BranchNE <= 1'b0;
+        end else begin
+            EXMEM_ALUOut   <= EX_ALUOut;   //48
+            EXMEM_rd2      <= EX_rd2;      //49
+            EXMEM_RegRd    <= EX_RegRd;    //50
+            EXMEM_RegWrite <= EX_RegWrite; //51
+            EXMEM_MemWrite <= EX_MemWrite; //52
+            EXMEM_MemRead  <= EX_MemRead;  //53
+            EXMEM_MemtoReg <= EX_MemtoReg; //54
+            EXMEM_btgt     <= EX_btgt;
+            EXMEM_Zero     <= EX_Zero;
+            EXMEM_Branch   <= EX_Branch;
+            EXMEM_BranchNE <= EX_BranchNE;
+        end
     end
 
     //----------------------------------------------------
@@ -233,8 +321,15 @@ module mips (
     assign MEM_MemWrite  = EXMEM_MemWrite; //59
     assign MEM_MemRead   = EXMEM_MemRead;  //60
     assign MEM_MemtoReg  = EXMEM_MemtoReg; //61
+    assign MEM_btgt       = EXMEM_btgt;
+    assign MEM_Zero       = EXMEM_Zero;
+    assign MEM_Branch     = EXMEM_Branch;
+    assign MEM_BranchNE   = EXMEM_BranchNE;
 
-    // ---- your code (MEM stage) ----
+    // beq: taken when Zero=1 (BranchNE=0) -> Zero ^ 0 = Zero
+    // bne: taken when Zero=0 (BranchNE=1) -> Zero ^ 1 = ~Zero
+    assign MEM_PCSrc = MEM_Branch & (MEM_Zero ^ MEM_BranchNE);
+
     assign Writedata_mips    = MEM_rd2;       //62
     assign address_mips      = MEM_ALUOut;    //63
     assign memory_write_mips = MEM_MemWrite;  //64
@@ -242,12 +337,20 @@ module mips (
     assign MEM_memout        = Readdata_mips; //66
 
     // **** SAVE TO PIPELINE REGISTERS
-    always_ff @(posedge clock_mips) begin
-        MEMWB_memout   <= MEM_memout;   //67
-        MEMWB_ALUOut   <= MEM_ALUOut;   //68
-        MEMWB_RegRd    <= MEM_RegRd;    //69
-        MEMWB_RegWrite <= MEM_RegWrite; //70
-        MEMWB_MemtoReg <= MEM_MemtoReg; //71
+    always_ff @(posedge clock_mips or posedge reset_mips) begin
+        if (reset_mips) begin
+            MEMWB_memout   <= 32'h0;
+            MEMWB_ALUOut   <= 32'h0;
+            MEMWB_RegRd    <= 5'h0;
+            MEMWB_RegWrite <= 1'b0;
+            MEMWB_MemtoReg <= 1'b0;
+        end else begin
+            MEMWB_memout   <= MEM_memout;   //67
+            MEMWB_ALUOut   <= MEM_ALUOut;   //68
+            MEMWB_RegRd    <= MEM_RegRd;    //69
+            MEMWB_RegWrite <= MEM_RegWrite; //70
+            MEMWB_MemtoReg <= MEM_MemtoReg; //71
+        end
     end
 
     //----------------------------------------------------
@@ -261,7 +364,6 @@ module mips (
     assign WB_RegWrite  = MEMWB_RegWrite; //75
     assign WB_MemtoReg  = MEMWB_MemtoReg; //76
 
-    // ---- your code (WB stage) ----
     assign WB_wd = WB_MemtoReg ? WB_memout : WB_ALUOut; //77
 
     always_ff @(negedge clock_mips) begin
@@ -269,11 +371,10 @@ module mips (
             Registers[WB_wn] <= WB_wd;
     end
 
-    // NOTE: overflow_mips and invalid_mips are declared as outputs in your
-    // original VHDL entity but were never actually driven anywhere in the
-    // architecture body - that's a pre-existing gap in the original file,
-    // not something introduced in this conversion. Left undriven here too,
-    // to keep this a faithful 1:1 port. Worth wiring these up for real when
-    // you extend the ISA (overflow especially, once you add more arithmetic).
+    // NOTE: overflow_mips and invalid_mips are declared as outputs in the
+    // entity but are not driven anywhere in the architecture, a
+    // pre-existing gap carried over faithfully from the original VHDL
+    // rather than silently patched. Worth wiring these up when the ISA is
+    // extended (overflow especially, once more arithmetic is added).
 
 endmodule

@@ -1,14 +1,14 @@
 module microcomputer (
-    input  logic       CLOCK_50,   // 50MHz clock on the DE10-Lite board
-    input  logic [1:0] KEY,        // keys/buttons (KEY[0]-KEY[1])
-    input  logic [9:0] SW,         // switches (SW[9]..SW[0])
-    output logic [9:0] LEDR,       // LEDs (unused - see note below)
-    output logic [6:0] HEX0,       // 7-segment display, digit 0
-    output logic [6:0] HEX1,       // 7-segment display, digit 1
-    output logic [6:0] HEX2,       // 7-segment display, digit 2
-    output logic [6:0] HEX3,       // 7-segment display, digit 3
-    output logic [6:0] HEX4,       // 7-segment display, digit 4
-    output logic [6:0] HEX5        // 7-segment display, digit 5
+    input  logic       CLOCK_50,    // 50MHz clock on the DE10-Lite board
+    input  logic [1:0] KEY,         // keys/buttons (KEY[0]-KEY[1])
+    input  logic [9:0] SW,          // switches (SW[9]..SW[0])
+    output logic [9:0] LEDR,        // LEDs (unused - see note below)
+    output logic [6:0] HEX0,        // 7-segment display, digit 0
+    output logic [6:0] HEX1,        // 7-segment display, digit 1
+    output logic [6:0] HEX2,        // 7-segment display, digit 2
+    output logic [6:0] HEX3,        // 7-segment display, digit 3
+    output logic [6:0] HEX4,        // 7-segment display, digit 4
+    output logic [6:0] HEX5         // 7-segment display, digit 5
 );
 
     //---- Signal declarations ----
@@ -37,9 +37,9 @@ module microcomputer (
     //*****************************************************************
     // reset / clock
     //*****************************************************************
-    assign reset = ~KEY[1];  // KEY[1] is reset
-    assign clock = ~KEY[0];  // KEY[0] used as the clock (50MHz is too fast)
-                              // may need debouncing circuit
+    assign reset = ~KEY[1]; // KEY[1] is reset
+    assign clock = ~KEY[0]; // KEY[0] used as the clock (50MHz is too fast)
+                            // may need debouncing circuit
 
     assign counter_set = flipflops[0] ^ flipflops[1];
 
@@ -154,9 +154,9 @@ module microcomputer (
     hex h4 (.i(plusone4), .o(HEX4));
     hex h5 (.i(plusone5), .o(HEX5));
 
-    // NOTE: LEDR is declared as an output in your original VHDL entity but
-    // was never actually driven in the architecture body - same pre-existing
-    // gap as overflow_mips/invalid_mips, carried over faithfully rather than
-    // silently "fixed." Worth wiring up when you add real debug/status LEDs.
+    // NOTE: LEDR is declared as an output in the entity but is not driven
+    // in the architecture - same pre-existing gap as overflow_mips/
+    // invalid_mips, carried over faithfully rather than silently patched.
+    // Worth wiring up when real debug/status LEDs are added.
 
 endmodule

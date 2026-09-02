@@ -11,7 +11,7 @@ module inst_memory_128B (
 	// 28(10, beq) --> 2C(11, add) --> 30(12, add) --> 34(13, add) --> 38(14, j) -->
 	// 40(16, beq) --> 4C(19, add) --> 50(20, beq) --> 28(10, beq) --> 3C(15, j) --> 54(21, add)
 
-	logic [31:0] ROM [0:47];
+	logic [31:0] ROM [0:61];
 
 	initial begin
 		// Registers and DM contain values from a previous execution when reset.
@@ -86,8 +86,23 @@ module inst_memory_128B (
 		ROM[44] = 32'h00603020; // B0 add $6, $3, $0, needs forwarded $3
 		ROM[45] = 32'h8ca70004; // B4 lw  $7, 4($5), reloads what was just stored,
 		                        //    confirming the store used the forwarded value
-		ROM[46] = 32'h0800002e; // B8 j 0xB8 (self), park here, done
-		ROM[47] = 32'h00000020; // BC filler, this is the jump's delay slot, always executes once
+		ROM[46] = 32'h20087fff; // c8 addi $8, $0, 32767, first chunk of the target address
+		ROM[47] = 32'h21087fff; // cc addi $8, $8, 32767, second chunk
+		ROM[48] = 32'h21087fff; // d0 addi $8, $8, 32767, third chunk
+		ROM[49] = 32'h21081743; // d4 addi $8, $8, 5955, final chunk, $8 now holds 0x19740,
+		                        //    the exact byte address of the framebuffer's center pixel
+		ROM[50] = 32'h200900e0; // d8 addi $9, $0, 224, a bright color value
+		ROM[51] = 32'had090000; // dc sw $9, 0($8), draw the center pixel
+		ROM[52] = 32'h210afd80; // e0 addi $10, $8, -640, one row up (160 words per row)
+		ROM[53] = 32'had490000; // e4 sw $9, 0($10)
+		ROM[54] = 32'h210a0280; // e8 addi $10, $8, 640, one row down
+		ROM[55] = 32'had490000; // ec sw $9, 0($10)
+		ROM[56] = 32'h210afffc; // f0 addi $10, $8, -4, one pixel left
+		ROM[57] = 32'had490000; // f4 sw $9, 0($10)
+		ROM[58] = 32'h210a0004; // f8 addi $10, $8, 4, one pixel right
+		ROM[59] = 32'had490000; // fc sw $9, 0($10)
+		ROM[60] = 32'h0800003c; // 100 j 0x100 (self), park here, done
+		ROM[61] = 32'h00000020; // 104 filler, the jump's delay slot, always executes once
 	end
 
 	// asynchronous / combinational read (word-addressed: pc_im/4)

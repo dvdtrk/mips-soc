@@ -8,7 +8,12 @@ module microcomputer (
 	output logic [6:0] HEX2,       // 7-segment display, digit 2
 	output logic [6:0] HEX3,       // 7-segment display, digit 3
 	output logic [6:0] HEX4,       // 7-segment display, digit 4
-	output logic [6:0] HEX5        // 7-segment display, digit 5
+	output logic [6:0] HEX5,       // 7-segment display, digit 5
+    output logic       VGA_HS,
+	output logic       VGA_VS,
+	output logic [3:0] VGA_R,
+	output logic [3:0] VGA_G,
+	output logic [3:0] VGA_B
 );
 
 	//---- Signal declarations ----
@@ -22,6 +27,35 @@ module microcomputer (
 	logic        memory_read, memory_write;
 	logic [31:0] Readdata;
 
+    //---------------------------------------------------------------------
+	// VGA / framebuffer: memory-mapped I/O address decode
+	//---------------------------------------------------------------------
+	// Addresses 0x10000 through 0x10000 + 19200*4 map to the framebuffer.
+
+	localparam logic [31:0] FB_BASE  = 32'h00010000;
+	localparam logic [31:0] FB_BYTES = 32'd19200 * 4;
+
+	logic        is_fb_region;
+	logic        memory_write_dm, memory_write_fb;
+	logic [14:0] fb_write_addr;
+	assign is_fb_region    = (address >= FB_BASE) && (address < FB_BASE + FB_BYTES);
+	assign memory_write_dm = memory_write && !is_fb_region;
+	assign memory_write_fb = memory_write &&  is_fb_region;
+	assign fb_write_addr   = (address - FB_BASE) >> 2;
+
+	// The framebuffer gets written on the CPU's slow manual clock but read
+	// continuously on the free running 25MHz pixel clock, so these are two
+	// different clock domains touching the same memory.
+
+	logic       vga_reset;
+	logic       clk25;
+	logic       hsync, vsync, video_on;
+	logic [9:0] h_count, v_count;
+	logic [7:0] fb_pixel;
+	logic [14:0] fb_read_addr;
+
+	assign vga_reset = ~KEY[1]; // same physical reset as the CPU
+
 	logic [3:0]  plusone, plusone1, plusone2, plusone3, plusone4, plusone5, plusone6, plusone7; // 7-seg digit values
 
 	logic [31:0] counter_out;
@@ -34,12 +68,12 @@ module microcomputer (
 		flipflops   = 2'b00;
 	end
 
-	//*****************************************************************
+	//--------------------------------------------------------------------
 	// reset / clock
-	//*****************************************************************
-	assign reset = ~KEY[1];  // KEY[1] is reset
-	assign clock = ~KEY[0];  // KEY[0] used as the clock (50MHz is too fast)
-							  // may need debouncing circuit
+	//--------------------------------------------------------------------
+	assign reset = ~KEY[1]; // KEY[1] is reset
+	assign clock = ~KEY[0]; // KEY[0] used as the clock (50MHz is too fast)
+							// may need debouncing circuit
 
 	assign counter_set = flipflops[0] ^ flipflops[1];
 
@@ -84,6 +118,61 @@ module microcomputer (
 		.memory_write_dm (memory_write),
 		.Readdata_dm     (Readdata)
 	);
+
+    // VGA / framebuffer instantiations -----------------------------------
+	framebuffer FB (
+		.clock      (clock),
+		.write_en   (memory_write_fb),
+		.write_addr (fb_write_addr),
+		.write_data (Writedata),
+        .read_clock (clk25),
+		.read_addr  (fb_read_addr),
+		.read_data  (fb_pixel)
+	);
+
+	vga_sync VGA (
+		.clk50   (CLOCK_50), // real-time, independent of the CPU's manual clock
+		.reset   (vga_reset),
+		.clk25   (clk25),
+		.hsync   (hsync),
+		.vsync   (vsync),
+		.video_on(video_on),
+		.h_count (h_count),
+		.v_count (v_count)
+	);
+
+	// VGA scanout: map screen position to a framebuffer pixel ------------
+	// each logical pixel is a 4x4 block on the real 640x480 screen:
+	// 640/4=160, 480/4=120
+	logic [14:0] fb_x, fb_y;
+	assign fb_x = h_count[8:2]; // 0..159
+	assign fb_y = v_count[8:2]; // 0..119
+	assign fb_read_addr = (fb_y * 15'd160) + fb_x;
+
+	// VGA color output ---------------------------------------------------
+
+    logic hsync_d, vsync_d, video_on_d;
+	always_ff @(posedge clk25) begin
+		hsync_d    <= hsync;
+		vsync_d    <= vsync;
+		video_on_d <= video_on;
+	end
+    
+	// simple 3-3-2 RGB decode: no palette table, just split the byte
+	always_comb begin
+		if (!video_on) begin
+			VGA_R = 4'h0;
+			VGA_G = 4'h0;
+			VGA_B = 4'h0;
+		end else begin
+			VGA_R = {fb_pixel[7:5], 1'b0}; // 3 bits -> upper 3 of the 4-bit DAC
+			VGA_G = {fb_pixel[4:2], 1'b0};
+			VGA_B = {fb_pixel[1:0], 2'b00}; // only 2 bits of blue available
+		end
+	end
+
+	assign VGA_HS = hsync;
+	assign VGA_VS = vsync;
 
 	// PC, instruction, Writedata (=rdata2), address (=ALUresult), Readdata
 	always_comb begin

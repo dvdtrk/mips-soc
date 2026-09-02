@@ -178,6 +178,14 @@ module mips (
 			ID_ALUOp  = 2'b01; // tells EX stage: force subtract
 		end else if (ID_op == 6'b000010) begin // j
 			ID_Jump = 1'b1;
+		end else if (ID_op == 6'b001000) begin // addi
+			ID_RegWrite = 1'b1;
+			ID_ALUSrc   = 1'b1;
+			// RegDst, MemtoReg, MemRead, MemWrite all stay at their
+			// default 0 here: destination is rt, result comes from the
+			// ALU (not memory), and nothing is read or written to data
+			// memory. ALUOp also stays 00, which the EX stage already
+			// decodes as add, exactly what addi needs.
 		end
 	end
 

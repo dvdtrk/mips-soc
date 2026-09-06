@@ -236,6 +236,8 @@ set_location_assignment PIN_Y1 -to VGA_R[3]
 set_location_assignment PIN_N1 -to VGA_VS
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name SYSTEMVERILOG_FILE src/text_buffer.sv
+set_global_assignment -name SYSTEMVERILOG_FILE src/font_rom.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/vga_sync.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/framebuffer.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/mips.sv

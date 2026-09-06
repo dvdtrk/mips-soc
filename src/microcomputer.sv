@@ -33,15 +33,22 @@ module microcomputer (
 	// Addresses 0x10000 through 0x10000 + 19200*4 map to the framebuffer.
 
 	localparam logic [31:0] FB_BASE  = 32'h00010000;
-	localparam logic [31:0] FB_BYTES = 32'd19200 * 4;
+	localparam logic [31:0] FB_BYTES = 32'd76800 * 4;
+	localparam logic [31:0] TXT_BASE  = 32'h00060000;
+	localparam logic [31:0] TXT_BYTES = 32'd4800 * 4;
 
-	logic        is_fb_region;
-	logic        memory_write_dm, memory_write_fb;
-	logic [14:0] fb_write_addr;
-	assign is_fb_region    = (address >= FB_BASE) && (address < FB_BASE + FB_BYTES);
-	assign memory_write_dm = memory_write && !is_fb_region;
-	assign memory_write_fb = memory_write &&  is_fb_region;
-	assign fb_write_addr   = (address - FB_BASE) >> 2;
+	logic        is_fb_region, is_txt_region;
+	logic        memory_write_dm, memory_write_fb, memory_write_txt;
+	logic [16:0] fb_write_addr;
+	logic [12:0] txt_write_addr;
+	assign is_fb_region     = (address >= FB_BASE)  && (address < FB_BASE  + FB_BYTES);
+	assign is_txt_region    = (address >= TXT_BASE) && (address < TXT_BASE + TXT_BYTES);
+	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region;
+	assign memory_write_fb  = memory_write &&  is_fb_region;
+	assign memory_write_txt = memory_write &&  is_txt_region;
+	assign fb_write_addr    = (address - FB_BASE)  >> 2;
+	assign txt_write_addr   = (address - TXT_BASE) >> 2;
+
 
 	// The framebuffer gets written on the CPU's slow manual clock but read
 	// continuously on the free running 25MHz pixel clock, so these are two
@@ -52,7 +59,9 @@ module microcomputer (
 	logic       hsync, vsync, video_on;
 	logic [9:0] h_count, v_count;
 	logic [7:0] fb_pixel;
-	logic [14:0] fb_read_addr;
+	logic [16:0] fb_read_addr;
+	logic [7:0] char_code;
+	logic [12:0] txt_read_addr;
 
 	assign vga_reset = ~KEY[1]; // same physical reset as the CPU
 
@@ -115,19 +124,35 @@ module microcomputer (
 		.address_dm      (address),
 		.Writedata_dm    (Writedata),
 		.memory_read_dm  (memory_read),
-		.memory_write_dm (memory_write),
+		.memory_write_dm (memory_write_dm),
 		.Readdata_dm     (Readdata)
 	);
 
     // VGA / framebuffer instantiations -----------------------------------
 	framebuffer FB (
-		.clock      (clock),
+		.reset      (reset),
 		.write_en   (memory_write_fb),
 		.write_addr (fb_write_addr),
 		.write_data (Writedata),
-        .read_clock (clk25),
+		.read_clock (clk25),
 		.read_addr  (fb_read_addr),
 		.read_data  (fb_pixel)
+	);
+
+	text_buffer TXT (
+		.reset      (reset),
+		.write_en   (memory_write_txt),
+		.write_addr (txt_write_addr),
+		.write_data (Writedata),
+		.read_clock (clk25),
+		.read_addr  (txt_read_addr),
+		.read_data  (char_code)
+	);
+
+	font_rom FONT (
+		.char_code(char_code),
+		.row      (char_row_in_glyph_d),
+		.font_row (font_row_bits)
 	);
 
 	vga_sync VGA (
@@ -142,12 +167,38 @@ module microcomputer (
 	);
 
 	// VGA scanout: map screen position to a framebuffer pixel ------------
-	// each logical pixel is a 4x4 block on the real 640x480 screen:
-	// 640/4=160, 480/4=120
-	logic [14:0] fb_x, fb_y;
-	assign fb_x = h_count[8:2]; // 0..159
-	assign fb_y = v_count[8:2]; // 0..119
-	assign fb_read_addr = (fb_y * 15'd160) + fb_x;
+	// each logical pixel is a 2x2 block on the real 640x480 screen:
+	// 640/2=320, 480/2=240
+	logic [16:0] fb_x, fb_y;
+	assign fb_x = h_count[9:1]; // 0..319
+	assign fb_y = v_count[9:1]; // 0..239
+	assign fb_read_addr = (fb_y * 17'd320) + fb_x;
+
+	//---- VGA scanout: map screen position to a text character cell ----
+	// text uses the full native 640x480 resolution, split into 8x8 character
+	// cells: 640/8=80 columns, 480/8=60 rows
+	logic [6:0] char_col;
+	logic [5:0] char_row;
+	logic [2:0] col_in_glyph, row_in_glyph;
+	assign char_col     = h_count[9:3];  // 0..79
+	assign char_row     = v_count[8:3];  // 0..59
+	assign col_in_glyph = h_count[2:0];  // 0..7
+	assign row_in_glyph = v_count[2:0];  // 0..7
+	assign txt_read_addr = (char_row * 7'd80) + char_col;
+
+	// text_buffer and framebuffer both add one clk25 cycle of latency
+	// (registered reads), so row_in_glyph and col_in_glyph need the same
+	// one cycle delay to stay lined up with char_code once it comes back,
+	// same idea as the hsync/vsync/video_on alignment below.
+	logic [2:0] char_row_in_glyph_d, col_in_glyph_d;
+	always_ff @(posedge clk25) begin
+		char_row_in_glyph_d <= row_in_glyph;
+		col_in_glyph_d      <= col_in_glyph;
+	end
+
+	logic [7:0] font_row_bits;
+	logic       text_pixel_on;
+	assign text_pixel_on = font_row_bits[3'd7 - col_in_glyph_d];
 
 	// VGA color output ---------------------------------------------------
 
@@ -160,10 +211,14 @@ module microcomputer (
     
 	// simple 3-3-2 RGB decode: no palette table, just split the byte
 	always_comb begin
-		if (!video_on) begin
+		if (!video_on_d) begin
 			VGA_R = 4'h0;
 			VGA_G = 4'h0;
 			VGA_B = 4'h0;
+		end else if (text_pixel_on) begin
+			VGA_R = 4'hF;
+			VGA_G = 4'hF;
+			VGA_B = 4'hF;	
 		end else begin
 			VGA_R = {fb_pixel[7:5], 1'b0}; // 3 bits -> upper 3 of the 4-bit DAC
 			VGA_G = {fb_pixel[4:2], 1'b0};
@@ -171,8 +226,8 @@ module microcomputer (
 		end
 	end
 
-	assign VGA_HS = hsync;
-	assign VGA_VS = vsync;
+	assign VGA_HS = hsync_d;
+	assign VGA_VS = vsync_d;
 
 	// PC, instruction, Writedata (=rdata2), address (=ALUresult), Readdata
 	always_comb begin

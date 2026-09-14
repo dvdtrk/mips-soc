@@ -236,6 +236,7 @@ set_location_assignment PIN_Y1 -to VGA_R[3]
 set_location_assignment PIN_N1 -to VGA_VS
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name SYSTEMVERILOG_FILE src/ps2_receiver.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/text_buffer.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/font_rom.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/vga_sync.sv
@@ -247,4 +248,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE src/hex.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/data_mem_64B.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/alu_32.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/alu.sv
+set_location_assignment PIN_AB9 -to PS2_KBD_CLK
+set_location_assignment PIN_Y10 -to PS2_KBD_DATA
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

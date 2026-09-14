@@ -13,7 +13,9 @@ module microcomputer (
 	output logic       VGA_VS,
 	output logic [3:0] VGA_R,
 	output logic [3:0] VGA_G,
-	output logic [3:0] VGA_B
+	output logic [3:0] VGA_B,
+	input  logic       PS2_KBD_CLK,   // ARDUINO_IO[3] / D3
+	input  logic       PS2_KBD_DATA   // ARDUINO_IO[2] / D2
 );
 
 	//---- Signal declarations ----
@@ -37,13 +39,23 @@ module microcomputer (
 	localparam logic [31:0] TXT_BASE  = 32'h00060000;
 	localparam logic [31:0] TXT_BYTES = 32'd4800 * 4;
 
+	localparam logic [31:0] KBD_DATA_ADDR   = 32'h00070000;
+	localparam logic [31:0] KBD_STATUS_ADDR = 32'h00070004;
+	localparam logic [31:0] KBD_ACK_ADDR    = 32'h00070008;
+
+	logic is_kbd_data_region, is_kbd_status_region, is_kbd_ack_region;
+	assign is_kbd_data_region 	= (address == KBD_DATA_ADDR);
+	assign is_kbd_status_region = (address == KBD_STATUS_ADDR);
+	assign is_kbd_ack_region	= (address == KBD_ACK_ADDR);
+
 	logic        is_fb_region, is_txt_region;
-	logic        memory_write_dm, memory_write_fb, memory_write_txt;
+	logic        memory_write_dm, memory_write_fb, memory_write_txt, memory_read_dm;
 	logic [16:0] fb_write_addr;
 	logic [12:0] txt_write_addr;
 	assign is_fb_region     = (address >= FB_BASE)  && (address < FB_BASE  + FB_BYTES);
 	assign is_txt_region    = (address >= TXT_BASE) && (address < TXT_BASE + TXT_BYTES);
-	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region;
+	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region && !is_kbd_ack_region;
+	assign memory_read_dm   = memory_read  && !is_fb_region && !is_txt_region &&!is_kbd_data_region && !is_kbd_status_region;
 	assign memory_write_fb  = memory_write &&  is_fb_region;
 	assign memory_write_txt = memory_write &&  is_txt_region;
 	assign fb_write_addr    = (address - FB_BASE)  >> 2;
@@ -63,7 +75,7 @@ module microcomputer (
 	logic [7:0] char_code;
 	logic [12:0] txt_read_addr;
 
-	assign vga_reset = ~KEY[1]; // same physical reset as the CPU
+	assign vga_reset = ~KEY[0]; // same physical reset as the CPU
 
 	logic [3:0]  plusone, plusone1, plusone2, plusone3, plusone4, plusone5, plusone6, plusone7; // 7-seg digit values
 
@@ -80,14 +92,68 @@ module microcomputer (
 	//--------------------------------------------------------------------
 	// reset / clock
 	//--------------------------------------------------------------------
-	assign reset = ~KEY[1]; // KEY[1] is reset
-	assign clock = ~KEY[0]; // KEY[0] used as the clock (50MHz is too fast)
-							// may need debouncing circuit
+	assign reset = ~KEY[0]; // KEY[0] is reset
+	assign clock = step_mode ? ~KEY[1] : clock_gated;
+	// SW[0] selects between single-step mode (advance one instruction per KEY[1] press, 
+	// and free-run mode (the CPU clocks itself automatically off a divided-down version 
+	// of CLOCK_50 which is fast enough for keyboard interacton
+
+	logic step_mode;
+	assign step_mode = SW[0]; // 1 = single step, 0 = free run
+
+	// dedicated free-run clock divider
+	logic [31:0] freerun_counter;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset)
+			freerun_counter <= 32'd0;
+		else
+			freerun_counter <= freerun_counter + 32'd1;
+	end
+	// bit 14 of a counter clocked at 50MHz toggles at roughly 1.5kHz
+	logic freerun_clock;
+	assign freerun_clock = freerun_counter[14];
+
+	// synchronizes KEY[1] and keeps track of its previous value
+	logic key1_sync1, key1_sync2, key1_prev;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset) begin
+			key1_sync1 <= 1'b1;
+			key1_sync2 <= 1'b1;
+			key1_prev  <= 1'b1;
+		end else begin
+			key1_sync1 <= KEY[1];
+			key1_sync2 <= key1_sync1;
+			key1_prev  <= key1_sync2;
+		end
+	end
+
+	logic pause_toggle;
+	assign pause_toggle = ~step_mode & key1_prev & ~key1_sync2; // one-cycle pulse on the press edge
+
+	// Pausing just freezes the CPU's clock mid-execution, in free-run mode only
+	logic paused;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset)
+			paused <= 1'b0;
+		else if (pause_toggle)
+			paused <= ~paused;
+	end
+
+
+	// Only lets freerun_clock's transitions through while not paused
+	// While paused, this register simply holds its last value 
+	logic clock_gated;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset)
+			clock_gated <= 1'b0;
+		else if (!paused)
+			clock_gated <= freerun_clock;
+	end
 
 	assign counter_set = flipflops[0] ^ flipflops[1];
 
 	always_ff @(posedge CLOCK_50) begin
-		flipflops[0] <= ~KEY[0];
+		flipflops[0] <= ~KEY[1];
 		flipflops[1] <= flipflops[0];
 		if (counter_set)
 			counter_out <= 32'h00000000;
@@ -108,7 +174,7 @@ module microcomputer (
 		.invalid_mips     (),           // not wired up in original design either
 		.memory_read_mips (memory_read),
 		.memory_write_mips(memory_write),
-		.Readdata_mips    (Readdata)
+		.Readdata_mips    (Readdata_cpu)
 	);
 
 	inst_memory_128B MEMORY_1 (
@@ -165,6 +231,48 @@ module microcomputer (
 		.h_count (h_count),
 		.v_count (v_count)
 	);
+
+		//---- PS/2 keyboard ----
+	// Runs on CLOCK_50, not the CPU's slow manual clock - the keyboard
+	// sends data at its own fixed rate regardless of how often KEY[1] gets
+	// pressed, so this needs to always be listening.
+	logic [7:0] kbd_scancode;
+	logic       kbd_data_ready;
+
+	ps2_receiver KBD (
+		.clock     (CLOCK_50),
+		.reset     (reset),
+		.ps2_clk   (PS2_KBD_CLK),
+		.ps2_data  (PS2_KBD_DATA),
+		.scancode  (kbd_scancode),
+		.data_ready(kbd_data_ready)
+	);
+
+	// "new scancode available" status bit: set the moment a byte arrives.
+	// Deliberately NOT cleared automatically by reading the status
+	logic kbd_new_data;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset)
+			kbd_new_data <= 1'b0;
+		else if (kbd_data_ready)
+			kbd_new_data <= 1'b1;
+		else if (memory_write && is_kbd_ack_region)
+			kbd_new_data <= 1'b0;
+	end
+
+	logic [7:0] kbd_scancode_held;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+    	if (reset)
+        	kbd_scancode_held <= 8'h00;
+    	else if (kbd_data_ready)
+        	kbd_scancode_held <= kbd_scancode;
+	end
+
+	logic [31:0] Readdata_cpu;
+	assign Readdata_cpu = is_kbd_status_region ? {31'b0, kbd_new_data} :
+	                       is_kbd_data_region   ? {24'b0, kbd_scancode_held} :
+	                       Readdata;
+
 
 	// VGA scanout: map screen position to a framebuffer pixel ------------
 	// each logical pixel is a 2x2 block on the real 640x480 screen:
@@ -240,8 +348,17 @@ module microcomputer (
 			plusone5 = 4'b0000;
 			plusone6 = 4'b0000;
 			plusone7 = 4'b0000;
+					
+		end else if (SW[6]) begin // keyboard debug: raw scancode + status, read directly from the ps2_receiver,
+		                          // completely bypassing the CPU
+			plusone  = kbd_scancode_held[3:0];
+			plusone1 = kbd_scancode_held[7:4];
+			plusone2 = {3'b000, kbd_new_data}; // 0 or 1: is a new key waiting?
+			plusone3 = 4'b0000;
+			plusone4 = 4'b0000;
+			plusone5 = 4'b0000;
 
-		end else if (SW == 10'b0000000001) begin // PC
+		end else if (SW[5:1] ==  5'b00001) begin // PC
 			plusone  = pc[3:0];
 			plusone1 = pc[7:4];
 			plusone2 = pc[11:8];
@@ -249,7 +366,7 @@ module microcomputer (
 			plusone4 = pc[19:16];
 			plusone5 = pc[23:20];
 
-		end else if (SW == 10'b0000000010) begin // instruction
+		end else if (SW[5:1] == 5'b00010) begin // instruction
 			plusone  = instruction[3:0];
 			plusone1 = instruction[7:4];
 			plusone2 = instruction[11:8];
@@ -257,7 +374,7 @@ module microcomputer (
 			plusone4 = instruction[19:16];
 			plusone5 = pc[3:0];
 
-		end else if (SW == 10'b0000000100) begin // Writedata (=rdata2)
+		end else if (SW[5:1] == 5'b00100) begin // Writedata (=rdata2)
 			plusone  = Writedata[3:0];
 			plusone1 = Writedata[7:4];
 			plusone2 = Writedata[11:8];
@@ -265,7 +382,7 @@ module microcomputer (
 			plusone4 = Writedata[19:16];
 			plusone5 = pc[3:0];
 
-		end else if (SW == 10'b0000001000) begin // address (=ALUresult)
+		end else if (SW[5:1] == 5'b01000) begin // address (=ALUresult)
 			plusone  = address[3:0];
 			plusone1 = address[7:4];
 			plusone2 = address[11:8];
@@ -273,7 +390,7 @@ module microcomputer (
 			plusone4 = address[19:16];
 			plusone5 = pc[3:0];
 
-		end else if (SW == 10'b0000010000) begin // Readdata
+		end else if (SW[5:1] == 5'b10000) begin // Readdata
 			plusone  = Readdata[3:0];
 			plusone1 = Readdata[7:4];
 			plusone2 = Readdata[11:8];

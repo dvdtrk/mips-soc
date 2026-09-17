@@ -12,6 +12,21 @@ module text_buffer (
 
 	logic [7:0] mem [0:4799]; // 80 columns x 60 rows, native 640x480 resolution
 
+	logic write_en_sync1, write_en_sync2, write_en_prev;
+	always_ff @(posedge read_clock or posedge reset) begin //syncrhonization
+		if (reset) begin
+			write_en_sync1 <= 1'b0;
+			write_en_sync2 <= 1'b0;
+			write_en_prev  <= 1'b0;
+		end else begin
+			write_en_sync1 <= write_en;
+			write_en_sync2 <= write_en_sync1;
+			write_en_prev  <= write_en_sync2;
+		end
+	end
+	logic write_pulse;
+	assign write_pulse = ~write_en_prev & write_en_sync2; // rising edge
+
 	// On reset, sweep through every address and write a space character (32)
 	logic        clearing;
 	logic [12:0] clear_addr;
@@ -31,7 +46,7 @@ module text_buffer (
 	always_ff @(posedge read_clock) begin
 		if (clearing)
 			mem[clear_addr] <= 8'd32; // space
-		else if (write_en)
+		else if (write_pulse)
 			mem[write_addr] <= write_data[7:0];
 	end
 

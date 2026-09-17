@@ -13,6 +13,21 @@ module framebuffer (
 
 	logic [7:0] mem [0:76799]; // 320*240 pixels, one byte each (in a 32-bit word slot)
 
+	logic write_en_sync1, write_en_sync2, write_en_prev;
+	always_ff @(posedge read_clock or posedge reset) begin //synchronization
+		if (reset) begin
+			write_en_sync1 <= 1'b0;
+			write_en_sync2 <= 1'b0;
+			write_en_prev  <= 1'b0;
+		end else begin
+			write_en_sync1 <= write_en;
+			write_en_sync2 <= write_en_sync1;
+			write_en_prev  <= write_en_sync2;
+		end
+	end
+	logic write_pulse;
+	assign write_pulse = ~write_en_prev & write_en_sync2; // rising edge
+	
 	// On reset, sweep through every address and write zero
 	// runs independently of the CPU's own manual step clock
 	logic        clearing;
@@ -33,7 +48,7 @@ module framebuffer (
 	always_ff @(posedge read_clock) begin
 		if (clearing)
 			mem[clear_addr] <= 8'h00;
-		else if (write_en)
+		else if (write_pulse)
 			mem[write_addr] <= write_data[7:0];
 	end
 

@@ -39,14 +39,26 @@ module microcomputer (
 	localparam logic [31:0] TXT_BASE  = 32'h00060000;
 	localparam logic [31:0] TXT_BYTES = 32'd4800 * 4;
 
-	localparam logic [31:0] KBD_DATA_ADDR   = 32'h00070000;
+	localparam logic [31:0] KBD_DATA_ADDR 	= 32'h00070000;
 	localparam logic [31:0] KBD_STATUS_ADDR = 32'h00070004;
-	localparam logic [31:0] KBD_ACK_ADDR    = 32'h00070008;
+	localparam logic [31:0] KBD_ACK_ADDR 	= 32'h00070008;
+
+	localparam logic [31:0] KEY_EVENT_DATA_ADDR   	= 32'h00070010;
+	localparam logic [31:0] KEY_EVENT_STATUS_ADDR 	= 32'h00070014;
+	localparam logic [31:0] KEY_EVENT_ACK_ADDR		= 32'h00070018;
+	localparam logic [31:0] CURSOR_POS_ADDR 		= 32'h00070020;
 
 	logic is_kbd_data_region, is_kbd_status_region, is_kbd_ack_region;
 	assign is_kbd_data_region 	= (address == KBD_DATA_ADDR);
 	assign is_kbd_status_region = (address == KBD_STATUS_ADDR);
 	assign is_kbd_ack_region	= (address == KBD_ACK_ADDR);
+
+	logic is_key_event_data_region, is_key_event_status_region, is_key_event_ack_region;
+	assign is_key_event_data_region   = (address == KEY_EVENT_DATA_ADDR);
+	assign is_key_event_status_region = (address == KEY_EVENT_STATUS_ADDR);
+	assign is_key_event_ack_region    = (address == KEY_EVENT_ACK_ADDR);
+	logic is_cursor_pos_region;
+	assign is_cursor_pos_region = (address == CURSOR_POS_ADDR);
 
 	logic        is_fb_region, is_txt_region;
 	logic        memory_write_dm, memory_write_fb, memory_write_txt, memory_read_dm;
@@ -54,8 +66,8 @@ module microcomputer (
 	logic [12:0] txt_write_addr;
 	assign is_fb_region     = (address >= FB_BASE)  && (address < FB_BASE  + FB_BYTES);
 	assign is_txt_region    = (address >= TXT_BASE) && (address < TXT_BASE + TXT_BYTES);
-	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region && !is_kbd_ack_region;
-	assign memory_read_dm   = memory_read  && !is_fb_region && !is_txt_region &&!is_kbd_data_region && !is_kbd_status_region;
+	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region && !is_kbd_ack_region && !is_key_event_ack_region;
+	assign memory_read_dm   = memory_read  && !is_fb_region && !is_txt_region && !is_kbd_data_region && !is_kbd_status_region && !is_key_event_data_region && !is_key_event_status_region;
 	assign memory_write_fb  = memory_write &&  is_fb_region;
 	assign memory_write_txt = memory_write &&  is_txt_region;
 	assign fb_write_addr    = (address - FB_BASE)  >> 2;
@@ -138,7 +150,6 @@ module microcomputer (
 		else if (pause_toggle)
 			paused <= ~paused;
 	end
-
 
 	// Only lets freerun_clock's transitions through while not paused
 	// While paused, this register simply holds its last value 
@@ -268,10 +279,48 @@ module microcomputer (
         	kbd_scancode_held <= kbd_scancode;
 	end
 
+	//This tracks whether the byte that just arrived should be swallowed because the previous byte was one of those two prefixes.
+	logic prev_was_prefix;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset)
+			prev_was_prefix <= 1'b0;
+		else if (kbd_data_ready) begin
+			if (prev_was_prefix)
+				prev_was_prefix <= 1'b0;
+			else if (kbd_scancode == 8'hF0 || kbd_scancode == 8'hE0)
+				prev_was_prefix <= 1'b1;
+		end
+	end
+
+	logic is_genuine_press;
+	assign is_genuine_press = kbd_data_ready && !prev_was_prefix && (kbd_scancode != 8'hF0) && (kbd_scancode != 8'hE0);
+
+	logic [7:0] key_ascii;
+	scancode_to_ascii ASCII (
+		.scancode(kbd_scancode),
+		.ascii   (key_ascii)
+	);
+
+	logic key_event_ready;
+	logic [7:0] key_event_char;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset) begin
+			key_event_ready <= 1'b0;
+			key_event_char  <= 8'h00;
+		end else if (is_genuine_press && (key_ascii != 8'h00) && !key_event_ready) begin
+			key_event_ready <= 1'b1;
+			key_event_char  <= key_ascii;
+		end else if (memory_write && is_key_event_ack_region) begin
+			key_event_ready <= 1'b0;
+		end
+	end
+
 	logic [31:0] Readdata_cpu;
 	assign Readdata_cpu = is_kbd_status_region ? {31'b0, kbd_new_data} :
-	                       is_kbd_data_region   ? {24'b0, kbd_scancode_held} :
-	                       Readdata;
+	                    	is_kbd_data_region   ? {24'b0, kbd_scancode_held} :
+							is_key_event_status_region ? {31'b0, key_event_ready} :
+	                    	is_key_event_data_region   ? {24'b0, key_event_char} :
+	                    	Readdata;
 
 
 	// VGA scanout: map screen position to a framebuffer pixel ------------
@@ -299,14 +348,32 @@ module microcomputer (
 	// one cycle delay to stay lined up with char_code once it comes back,
 	// same idea as the hsync/vsync/video_on alignment below.
 	logic [2:0] char_row_in_glyph_d, col_in_glyph_d;
+	logic [6:0] char_col_d;
+	logic [5:0] char_row_d;
 	always_ff @(posedge clk25) begin
 		char_row_in_glyph_d <= row_in_glyph;
 		col_in_glyph_d      <= col_in_glyph;
+		char_col_d          <= char_col;
+		char_row_d 			<= char_row;
 	end
 
 	logic [7:0] font_row_bits;
 	logic       text_pixel_on;
 	assign text_pixel_on = font_row_bits[3'd7 - col_in_glyph_d];
+
+	// Cursor
+	logic [31:0] cursor_pos_addr;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset)
+			cursor_pos_addr <= TXT_BASE;
+		else if (memory_write && is_cursor_pos_region)
+			cursor_pos_addr <= Writedata;
+	end
+	logic [12:0] cursor_char_index;
+	assign cursor_char_index = (cursor_pos_addr - TXT_BASE) >> 2;
+
+	logic cursor_on;
+	assign cursor_on = (({6'b0, char_row_d} * 7'd80 + char_col_d) == cursor_char_index) && (char_row_in_glyph_d == 3'd7);
 
 	// VGA color output ---------------------------------------------------
 
@@ -323,7 +390,7 @@ module microcomputer (
 			VGA_R = 4'h0;
 			VGA_G = 4'h0;
 			VGA_B = 4'h0;
-		end else if (text_pixel_on) begin
+		end else if (text_pixel_on || cursor_on) begin
 			VGA_R = 4'hF;
 			VGA_G = 4'hF;
 			VGA_B = 4'hF;	

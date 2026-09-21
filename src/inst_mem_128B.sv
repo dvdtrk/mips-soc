@@ -11,7 +11,7 @@ module inst_memory_128B (
 	// 28(10, beq) --> 2C(11, add) --> 30(12, add) --> 34(13, add) --> 38(14, j) -->
 	// 40(16, beq) --> 4C(19, add) --> 50(20, beq) --> 28(10, beq) --> 3C(15, j) --> 54(21, add)
 
-	logic [31:0] ROM [0:99];
+	logic [31:0] ROM [0:153];
 
 	initial begin
 		// Registers and DM contain values from a previous execution when reset.
@@ -143,11 +143,84 @@ module inst_memory_128B (
 		ROM[95] = 32'had8d0024; // 17c sw $13, 36($12), write 'l' at column 9
 		ROM[96] = 32'h200d0064; // 180 addi $13, $0, 100, 'd'
 		ROM[97] = 32'had8d0028; // 184 sw $13, 40($12), write 'd' at column 10
-		ROM[98] = 32'h08000062; // 188 j 0x188 (self), park here, done
-		ROM[99] = 32'h00000020; // 18c filler, the jump's delay slot, always executes
-	// asynchronous / combinational read (word-addressed: pc_im/4)
+		ROM[98] = 32'h218c0140; // 188 addi $12, $12, 320, move cursor to row 2 -
+		                        //    leaves "hello world" on row 1 untouched
+		ROM[99] = 32'h20167fff; // 18c addi $22, $0, 32767, building the key-event
+		                        //    interface's base address, 0x70010
+		ROM[100] = 32'h22d67fff; // 190 addi $22, $22, 32767
+		ROM[101] = 32'h22d67fff; // 194 addi $22, $22, 32767
+		ROM[102] = 32'h22d67fff; // 198 addi $22, $22, 32767
+		ROM[103] = 32'h22d67fff; // 19c addi $22, $22, 32767
+		ROM[104] = 32'h22d67fff; // 1a0 addi $22, $22, 32767
+		ROM[105] = 32'h22d67fff; // 1a4 addi $22, $22, 32767
+		ROM[106] = 32'h22d67fff; // 1a8 addi $22, $22, 32767
+		ROM[107] = 32'h22d67fff; // 1ac addi $22, $22, 32767
+		ROM[108] = 32'h22d67fff; // 1b0 addi $22, $22, 32767
+		ROM[109] = 32'h22d67fff; // 1b4 addi $22, $22, 32767
+		ROM[110] = 32'h22d67fff; // 1b8 addi $22, $22, 32767
+		ROM[111] = 32'h22d67fff; // 1bc addi $22, $22, 32767
+		ROM[112] = 32'h22d67fff; // 1c0 addi $22, $22, 32767
+		ROM[113] = 32'h22d6001e; // 1c4 addi $22, $22, 30, $22 now holds 0x70010,
+		                         //    the key-event data address
+		// POLL loop starts here (0x1c8): check for a key, and only act
+		// once one is actually ready
+		ROM[114] = 32'h20147fff; // 1c8 addi $20, $0, 32767, building the cursor
+		                         //    position register's address, 0x70020
+		ROM[115] = 32'h22947fff; // 1cc addi $20, $20, 32767
+		ROM[116] = 32'h22947fff; // 1d0 addi $20, $20, 32767
+		ROM[117] = 32'h22947fff; // 1d4 addi $20, $20, 32767
+		ROM[118] = 32'h22947fff; // 1d8 addi $20, $20, 32767
+		ROM[119] = 32'h22947fff; // 1dc addi $20, $20, 32767
+		ROM[120] = 32'h22947fff; // 1e0 addi $20, $20, 32767
+		ROM[121] = 32'h22947fff; // 1e4 addi $20, $20, 32767
+		ROM[122] = 32'h22947fff; // 1e8 addi $20, $20, 32767
+		ROM[123] = 32'h22947fff; // 1ec addi $20, $20, 32767
+		ROM[124] = 32'h22947fff; // 1f0 addi $20, $20, 32767
+		ROM[125] = 32'h22947fff; // 1f4 addi $20, $20, 32767
+		ROM[126] = 32'h22947fff; // 1f8 addi $20, $20, 32767
+		ROM[127] = 32'h22947fff; // 1fc addi $20, $20, 32767
+		ROM[128] = 32'h2294002e; // 200 addi $20, $20, 46, $20 now holds 0x70020
+		ROM[129] = 32'hae8c0000; // 204 sw $12, 0($20), show the cursor at the
+		                         //    starting position right away, before
+		                         //    any character has been typed
+		// POLL loop starts here (0x208)
+		ROM[130] = 32'h8ed80004; // 208 lw $24, 4($22), read status
+		ROM[131] = 32'h1300fffe; // 20c beq $24, $0, POLL, no new key yet, loop back
+		ROM[132] = 32'h00000020; // 210 nop (delay slot 1 of 3)
+		ROM[133] = 32'h00000020; // 214 nop (delay slot 2 of 3)
+		ROM[134] = 32'h00000020; // 218 nop (delay slot 3 of 3)
+		ROM[135] = 32'h8ed90000; // 21c lw $25, 0($22), read the character
+		ROM[136] = 32'h201a0008; // 220 addi $26, $0, 8, the ASCII backspace value
+		ROM[137] = 32'h133a0009; // 224 beq $25, $26, BACKSPACE, is this a
+		                         //    backspace instead of a normal character?
+		ROM[138] = 32'h00000020; // 228 nop (delay slot 1 of 3)
+		ROM[139] = 32'h00000020; // 22c nop (delay slot 2 of 3)
+		ROM[140] = 32'h00000020; // 230 nop (delay slot 3 of 3)
+		// normal path: write the character and advance
+		ROM[141] = 32'had990000; // 234 sw $25, 0($12), write the character into
+		                         //    the text buffer at the current cursor
+		ROM[142] = 32'h218c0004; // 238 addi $12, $12, 4, advance the cursor
+		ROM[143] = 32'hae8c0000; // 23c sw $12, 0($20), update the cursor
+		                         //    position register so the hardware
+		                         //    cursor indicator moves with it
+		ROM[144] = 32'haec00008; // 240 sw $0, 8($22), acknowledge
+		ROM[145] = 32'h08000082; // 244 j POLL, loop back and keep polling
+		ROM[146] = 32'h00000020; // 248 nop, the jump's delay slot
+		// BACKSPACE handler (0x24c): move the cursor back one cell and
+		// erase whatever character was there by overwriting it with a
+		// space, rather than actually storing a backspace character
+		ROM[147] = 32'h218cfffc; // 24c addi $12, $12, -4, move cursor back
+		ROM[148] = 32'h201b0020; // 250 addi $27, $0, 32, a space character
+		ROM[149] = 32'had9b0000; // 254 sw $27, 0($12), erase the character
+		                         //    that was there
+		ROM[150] = 32'hae8c0000; // 258 sw $12, 0($20), update the cursor
+		                         //    position register to match
+		ROM[151] = 32'haec00008; // 25c sw $0, 8($22), acknowledge
+		ROM[152] = 32'h08000082; // 260 j POLL, loop back and keep polling
+		ROM[153] = 32'h00000020; // 264 nop, the jump's delay slot
 	end 
-
+	
+	// asynchronous / combinational read (word-addressed: pc_im/4)
 	assign instruction_im = ROM[pc_im[31:2]];
 
 endmodule

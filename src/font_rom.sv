@@ -16,6 +16,7 @@ module font_rom (
 			11'd261: font_row = 8'h00; // 'space' row 5
 			11'd262: font_row = 8'h00; // 'space' row 6
 			11'd263: font_row = 8'h00; // 'space' row 7
+
 			11'd384: font_row = 8'h3c; // '0' row 0
 			11'd385: font_row = 8'h67; // '0' row 1
 			11'd386: font_row = 8'h6f; // '0' row 2
@@ -24,6 +25,7 @@ module font_rom (
 			11'd389: font_row = 8'h73; // '0' row 5
 			11'd390: font_row = 8'h3c; // '0' row 6
 			11'd391: font_row = 8'h00; // '0' row 7
+
 			11'd392: font_row = 8'h18; // '1' row 0
 			11'd393: font_row = 8'h38; // '1' row 1
 			11'd394: font_row = 8'h18; // '1' row 2
@@ -32,6 +34,7 @@ module font_rom (
 			11'd397: font_row = 8'h18; // '1' row 5
 			11'd398: font_row = 8'h3c; // '1' row 6
 			11'd399: font_row = 8'h00; // '1' row 7
+
 			11'd400: font_row = 8'h3c; // '2' row 0
 			11'd401: font_row = 8'h66; // '2' row 1
 			11'd402: font_row = 8'h03; // '2' row 2
@@ -40,6 +43,7 @@ module font_rom (
 			11'd405: font_row = 8'h60; // '2' row 5
 			11'd406: font_row = 8'h7f; // '2' row 6
 			11'd407: font_row = 8'h00; // '2' row 7
+
 			11'd408: font_row = 8'h3c; // '3' row 0
 			11'd409: font_row = 8'h66; // '3' row 1
 			11'd410: font_row = 8'h03; // '3' row 2
@@ -48,6 +52,7 @@ module font_rom (
 			11'd413: font_row = 8'h66; // '3' row 5
 			11'd414: font_row = 8'h3c; // '3' row 6
 			11'd415: font_row = 8'h00; // '3' row 7
+
 			11'd416: font_row = 8'h0c; // '4' row 0
 			11'd417: font_row = 8'h1c; // '4' row 1
 			11'd418: font_row = 8'h3c; // '4' row 2
@@ -56,6 +61,7 @@ module font_rom (
 			11'd421: font_row = 8'h0c; // '4' row 5
 			11'd422: font_row = 8'h0c; // '4' row 6
 			11'd423: font_row = 8'h00; // '4' row 7
+
 			11'd424: font_row = 8'h7f; // '5' row 0
 			11'd425: font_row = 8'h60; // '5' row 1
 			11'd426: font_row = 8'h7e; // '5' row 2
@@ -64,6 +70,7 @@ module font_rom (
 			11'd429: font_row = 8'h66; // '5' row 5
 			11'd430: font_row = 8'h3c; // '5' row 6
 			11'd431: font_row = 8'h00; // '5' row 7
+
 			11'd432: font_row = 8'h3c; // '6' row 0
 			11'd433: font_row = 8'h66; // '6' row 1
 			11'd434: font_row = 8'h60; // '6' row 2
@@ -72,6 +79,7 @@ module font_rom (
 			11'd437: font_row = 8'h66; // '6' row 5
 			11'd438: font_row = 8'h3c; // '6' row 6
 			11'd439: font_row = 8'h00; // '6' row 7
+
 			11'd440: font_row = 8'h7f; // '7' row 0
 			11'd441: font_row = 8'h03; // '7' row 1
 			11'd442: font_row = 8'h0c; // '7' row 2
@@ -80,6 +88,7 @@ module font_rom (
 			11'd445: font_row = 8'h30; // '7' row 5
 			11'd446: font_row = 8'h30; // '7' row 6
 			11'd447: font_row = 8'h00; // '7' row 7
+
 			11'd448: font_row = 8'h3c; // '8' row 0
 			11'd449: font_row = 8'h66; // '8' row 1
 			11'd450: font_row = 8'h66; // '8' row 2
@@ -88,6 +97,7 @@ module font_rom (
 			11'd453: font_row = 8'h66; // '8' row 5
 			11'd454: font_row = 8'h3c; // '8' row 6
 			11'd455: font_row = 8'h00; // '8' row 7
+
 			11'd456: font_row = 8'h3c; // '9' row 0
 			11'd457: font_row = 8'h66; // '9' row 1
 			11'd458: font_row = 8'h66; // '9' row 2
@@ -96,6 +106,7 @@ module font_rom (
 			11'd461: font_row = 8'h66; // '9' row 5
 			11'd462: font_row = 8'h3c; // '9' row 6
 			11'd463: font_row = 8'h00; // '9' row 7
+
 			11'd520: font_row = 8'h30; // 'A' row 0
 			11'd521: font_row = 8'h18; // 'A' row 1
 			11'd522: font_row = 8'h3c; // 'A' row 2
@@ -104,6 +115,7 @@ module font_rom (
 			11'd525: font_row = 8'h66; // 'A' row 5
 			11'd526: font_row = 8'h66; // 'A' row 6
 			11'd527: font_row = 8'h00; // 'A' row 7
+
 			11'd528: font_row = 8'hf8; // 'B' row 0
 			11'd529: font_row = 8'h66; // 'B' row 1
 			11'd530: font_row = 8'h7c; // 'B' row 2
@@ -112,6 +124,7 @@ module font_rom (
 			11'd533: font_row = 8'h66; // 'B' row 5
 			11'd534: font_row = 8'h7c; // 'B' row 6
 			11'd535: font_row = 8'h00; // 'B' row 7
+			
 			11'd536: font_row = 8'h3c; // 'C' row 0
 			11'd537: font_row = 8'h66; // 'C' row 1
 			11'd538: font_row = 8'h60; // 'C' row 2
@@ -120,6 +133,7 @@ module font_rom (
 			11'd541: font_row = 8'h66; // 'C' row 5
 			11'd542: font_row = 8'h3c; // 'C' row 6
 			11'd543: font_row = 8'h00; // 'C' row 7
+
 			11'd544: font_row = 8'hf8; // 'D' row 0
 			11'd545: font_row = 8'h66; // 'D' row 1
 			11'd546: font_row = 8'h66; // 'D' row 2
@@ -128,6 +142,7 @@ module font_rom (
 			11'd549: font_row = 8'h66; // 'D' row 5
 			11'd550: font_row = 8'hf8; // 'D' row 6
 			11'd551: font_row = 8'h00; // 'D' row 7
+
 			11'd552: font_row = 8'hff; // 'E' row 0
 			11'd553: font_row = 8'h60; // 'E' row 1
 			11'd554: font_row = 8'h7c; // 'E' row 2
@@ -136,6 +151,7 @@ module font_rom (
 			11'd557: font_row = 8'h60; // 'E' row 5
 			11'd558: font_row = 8'hff; // 'E' row 6
 			11'd559: font_row = 8'h00; // 'E' row 7
+
 			11'd560: font_row = 8'hff; // 'F' row 0
 			11'd561: font_row = 8'h60; // 'F' row 1
 			11'd562: font_row = 8'h7c; // 'F' row 2
@@ -144,6 +160,7 @@ module font_rom (
 			11'd565: font_row = 8'h60; // 'F' row 5
 			11'd566: font_row = 8'h60; // 'F' row 6
 			11'd567: font_row = 8'h00; // 'F' row 7
+
 			11'd568: font_row = 8'h3c; // 'G' row 0
 			11'd569: font_row = 8'h66; // 'G' row 1
 			11'd570: font_row = 8'h60; // 'G' row 2
@@ -152,6 +169,7 @@ module font_rom (
 			11'd573: font_row = 8'h66; // 'G' row 5
 			11'd574: font_row = 8'h3c; // 'G' row 6
 			11'd575: font_row = 8'h00; // 'G' row 7
+
 			11'd576: font_row = 8'h66; // 'H' row 0
 			11'd577: font_row = 8'h66; // 'H' row 1
 			11'd578: font_row = 8'h7e; // 'H' row 2
@@ -160,6 +178,7 @@ module font_rom (
 			11'd581: font_row = 8'h66; // 'H' row 5
 			11'd582: font_row = 8'h66; // 'H' row 6
 			11'd583: font_row = 8'h00; // 'H' row 7
+
 			11'd584: font_row = 8'h3c; // 'I' row 0
 			11'd585: font_row = 8'h18; // 'I' row 1
 			11'd586: font_row = 8'h18; // 'I' row 2
@@ -168,6 +187,7 @@ module font_rom (
 			11'd589: font_row = 8'h18; // 'I' row 5
 			11'd590: font_row = 8'h3c; // 'I' row 6
 			11'd591: font_row = 8'h00; // 'I' row 7
+
 			11'd592: font_row = 8'h1f; // 'J' row 0
 			11'd593: font_row = 8'h03; // 'J' row 1
 			11'd594: font_row = 8'h03; // 'J' row 2
@@ -176,6 +196,7 @@ module font_rom (
 			11'd597: font_row = 8'h66; // 'J' row 5
 			11'd598: font_row = 8'h3c; // 'J' row 6
 			11'd599: font_row = 8'h00; // 'J' row 7
+
 			11'd600: font_row = 8'h66; // 'K' row 0
 			11'd601: font_row = 8'h6c; // 'K' row 1
 			11'd602: font_row = 8'h78; // 'K' row 2
@@ -184,6 +205,7 @@ module font_rom (
 			11'd605: font_row = 8'h66; // 'K' row 5
 			11'd606: font_row = 8'h66; // 'K' row 6
 			11'd607: font_row = 8'h00; // 'K' row 7
+
 			11'd608: font_row = 8'h60; // 'L' row 0
 			11'd609: font_row = 8'h60; // 'L' row 1
 			11'd610: font_row = 8'h60; // 'L' row 2
@@ -192,6 +214,7 @@ module font_rom (
 			11'd613: font_row = 8'h60; // 'L' row 5
 			11'd614: font_row = 8'hff; // 'L' row 6
 			11'd615: font_row = 8'h00; // 'L' row 7
+
 			11'd616: font_row = 8'hc3; // 'M' row 0
 			11'd617: font_row = 8'he7; // 'M' row 1
 			11'd618: font_row = 8'hdb; // 'M' row 2
@@ -200,6 +223,7 @@ module font_rom (
 			11'd621: font_row = 8'hc3; // 'M' row 5
 			11'd622: font_row = 8'hc3; // 'M' row 6
 			11'd623: font_row = 8'h00; // 'M' row 7
+
 			11'd624: font_row = 8'h66; // 'N' row 0
 			11'd625: font_row = 8'h76; // 'N' row 1
 			11'd626: font_row = 8'h7e; // 'N' row 2
@@ -208,6 +232,7 @@ module font_rom (
 			11'd629: font_row = 8'h66; // 'N' row 5
 			11'd630: font_row = 8'h66; // 'N' row 6
 			11'd631: font_row = 8'h00; // 'N' row 7
+
 			11'd632: font_row = 8'h3c; // 'O' row 0
 			11'd633: font_row = 8'h66; // 'O' row 1
 			11'd634: font_row = 8'h66; // 'O' row 2
@@ -216,6 +241,7 @@ module font_rom (
 			11'd637: font_row = 8'h66; // 'O' row 5
 			11'd638: font_row = 8'h3c; // 'O' row 6
 			11'd639: font_row = 8'h00; // 'O' row 7
+
 			11'd640: font_row = 8'hf8; // 'P' row 0
 			11'd641: font_row = 8'h66; // 'P' row 1
 			11'd642: font_row = 8'h66; // 'P' row 2
@@ -224,6 +250,7 @@ module font_rom (
 			11'd645: font_row = 8'h60; // 'P' row 5
 			11'd646: font_row = 8'h60; // 'P' row 6
 			11'd647: font_row = 8'h00; // 'P' row 7
+
 			11'd648: font_row = 8'h3c; // 'Q' row 0
 			11'd649: font_row = 8'h66; // 'Q' row 1
 			11'd650: font_row = 8'h66; // 'Q' row 2
@@ -232,6 +259,7 @@ module font_rom (
 			11'd653: font_row = 8'h66; // 'Q' row 5
 			11'd654: font_row = 8'h3d; // 'Q' row 6
 			11'd655: font_row = 8'h00; // 'Q' row 7
+
 			11'd656: font_row = 8'hf8; // 'R' row 0
 			11'd657: font_row = 8'h66; // 'R' row 1
 			11'd658: font_row = 8'h66; // 'R' row 2
@@ -240,6 +268,7 @@ module font_rom (
 			11'd661: font_row = 8'h66; // 'R' row 5
 			11'd662: font_row = 8'h66; // 'R' row 6
 			11'd663: font_row = 8'h00; // 'R' row 7
+
 			11'd664: font_row = 8'h3c; // 'S' row 0
 			11'd665: font_row = 8'h66; // 'S' row 1
 			11'd666: font_row = 8'h60; // 'S' row 2
@@ -248,6 +277,7 @@ module font_rom (
 			11'd669: font_row = 8'h66; // 'S' row 5
 			11'd670: font_row = 8'h3c; // 'S' row 6
 			11'd671: font_row = 8'h00; // 'S' row 7
+
 			11'd672: font_row = 8'hff; // 'T' row 0
 			11'd673: font_row = 8'h18; // 'T' row 1
 			11'd674: font_row = 8'h18; // 'T' row 2
@@ -256,6 +286,7 @@ module font_rom (
 			11'd677: font_row = 8'h18; // 'T' row 5
 			11'd678: font_row = 8'h18; // 'T' row 6
 			11'd679: font_row = 8'h00; // 'T' row 7
+
 			11'd680: font_row = 8'h66; // 'U' row 0
 			11'd681: font_row = 8'h66; // 'U' row 1
 			11'd682: font_row = 8'h66; // 'U' row 2
@@ -264,6 +295,7 @@ module font_rom (
 			11'd685: font_row = 8'h66; // 'U' row 5
 			11'd686: font_row = 8'h3c; // 'U' row 6
 			11'd687: font_row = 8'h00; // 'U' row 7
+
 			11'd688: font_row = 8'h66; // 'V' row 0
 			11'd689: font_row = 8'h66; // 'V' row 1
 			11'd690: font_row = 8'h66; // 'V' row 2
@@ -272,6 +304,7 @@ module font_rom (
 			11'd693: font_row = 8'h3c; // 'V' row 5
 			11'd694: font_row = 8'h18; // 'V' row 6
 			11'd695: font_row = 8'h00; // 'V' row 7
+
 			11'd696: font_row = 8'hc3; // 'W' row 0
 			11'd697: font_row = 8'hc3; // 'W' row 1
 			11'd698: font_row = 8'hc3; // 'W' row 2
@@ -280,6 +313,7 @@ module font_rom (
 			11'd701: font_row = 8'he7; // 'W' row 5
 			11'd702: font_row = 8'hc3; // 'W' row 6
 			11'd703: font_row = 8'h00; // 'W' row 7
+
 			11'd704: font_row = 8'h66; // 'X' row 0
 			11'd705: font_row = 8'h66; // 'X' row 1
 			11'd706: font_row = 8'h3c; // 'X' row 2
@@ -288,6 +322,7 @@ module font_rom (
 			11'd709: font_row = 8'h66; // 'X' row 5
 			11'd710: font_row = 8'h66; // 'X' row 6
 			11'd711: font_row = 8'h00; // 'X' row 7
+
 			11'd712: font_row = 8'h66; // 'Y' row 0
 			11'd713: font_row = 8'h66; // 'Y' row 1
 			11'd714: font_row = 8'h3c; // 'Y' row 2
@@ -296,6 +331,7 @@ module font_rom (
 			11'd717: font_row = 8'h18; // 'Y' row 5
 			11'd718: font_row = 8'h18; // 'Y' row 6
 			11'd719: font_row = 8'h00; // 'Y' row 7
+
 			11'd720: font_row = 8'hff; // 'Z' row 0
 			11'd721: font_row = 8'h03; // 'Z' row 1
 			11'd722: font_row = 8'h06; // 'Z' row 2
@@ -304,6 +340,7 @@ module font_rom (
 			11'd725: font_row = 8'h30; // 'Z' row 5
 			11'd726: font_row = 8'hff; // 'Z' row 6
 			11'd727: font_row = 8'h00; // 'Z' row 7
+
 			11'd776: font_row = 8'h00; // 'a' row 0
 			11'd777: font_row = 8'h00; // 'a' row 1
 			11'd778: font_row = 8'h78; // 'a' row 2
@@ -312,6 +349,7 @@ module font_rom (
 			11'd781: font_row = 8'h66; // 'a' row 5
 			11'd782: font_row = 8'h3c; // 'a' row 6
 			11'd783: font_row = 8'h00; // 'a' row 7
+
 			11'd784: font_row = 8'h60; // 'b' row 0
 			11'd785: font_row = 8'h60; // 'b' row 1
 			11'd786: font_row = 8'h7c; // 'b' row 2
@@ -320,6 +358,7 @@ module font_rom (
 			11'd789: font_row = 8'h66; // 'b' row 5
 			11'd790: font_row = 8'h7c; // 'b' row 6
 			11'd791: font_row = 8'h00; // 'b' row 7
+
 			11'd792: font_row = 8'h00; // 'c' row 0
 			11'd793: font_row = 8'h00; // 'c' row 1
 			11'd794: font_row = 8'h3c; // 'c' row 2
@@ -328,6 +367,7 @@ module font_rom (
 			11'd797: font_row = 8'h60; // 'c' row 5
 			11'd798: font_row = 8'h3c; // 'c' row 6
 			11'd799: font_row = 8'h00; // 'c' row 7
+
 			11'd800: font_row = 8'h0c; // 'd' row 0
 			11'd801: font_row = 8'h0c; // 'd' row 1
 			11'd802: font_row = 8'h3e; // 'd' row 2
@@ -336,6 +376,7 @@ module font_rom (
 			11'd805: font_row = 8'h66; // 'd' row 5
 			11'd806: font_row = 8'h3e; // 'd' row 6
 			11'd807: font_row = 8'h00; // 'd' row 7
+
 			11'd808: font_row = 8'h00; // 'e' row 0
 			11'd809: font_row = 8'h00; // 'e' row 1
 			11'd810: font_row = 8'h3c; // 'e' row 2
@@ -344,6 +385,7 @@ module font_rom (
 			11'd813: font_row = 8'h60; // 'e' row 5
 			11'd814: font_row = 8'h3c; // 'e' row 6
 			11'd815: font_row = 8'h00; // 'e' row 7
+
 			11'd816: font_row = 8'h1c; // 'f' row 0
 			11'd817: font_row = 8'h33; // 'f' row 1
 			11'd818: font_row = 8'h60; // 'f' row 2
@@ -352,6 +394,7 @@ module font_rom (
 			11'd821: font_row = 8'h60; // 'f' row 5
 			11'd822: font_row = 8'h60; // 'f' row 6
 			11'd823: font_row = 8'h00; // 'f' row 7
+
 			11'd824: font_row = 8'h00; // 'g' row 0
 			11'd825: font_row = 8'h00; // 'g' row 1
 			11'd826: font_row = 8'h3e; // 'g' row 2
@@ -360,6 +403,7 @@ module font_rom (
 			11'd829: font_row = 8'h3e; // 'g' row 5
 			11'd830: font_row = 8'h0c; // 'g' row 6
 			11'd831: font_row = 8'h7c; // 'g' row 7
+
 			11'd832: font_row = 8'h60; // 'h' row 0
 			11'd833: font_row = 8'h60; // 'h' row 1
 			11'd834: font_row = 8'h7c; // 'h' row 2
@@ -368,6 +412,7 @@ module font_rom (
 			11'd837: font_row = 8'h66; // 'h' row 5
 			11'd838: font_row = 8'h66; // 'h' row 6
 			11'd839: font_row = 8'h00; // 'h' row 7
+
 			11'd840: font_row = 8'h18; // 'i' row 0
 			11'd841: font_row = 8'h00; // 'i' row 1
 			11'd842: font_row = 8'h38; // 'i' row 2
@@ -376,6 +421,7 @@ module font_rom (
 			11'd845: font_row = 8'h18; // 'i' row 5
 			11'd846: font_row = 8'h3c; // 'i' row 6
 			11'd847: font_row = 8'h00; // 'i' row 7
+
 			11'd848: font_row = 8'h0c; // 'j' row 0
 			11'd849: font_row = 8'h00; // 'j' row 1
 			11'd850: font_row = 8'h1c; // 'j' row 2
@@ -384,6 +430,7 @@ module font_rom (
 			11'd853: font_row = 8'h0c; // 'j' row 5
 			11'd854: font_row = 8'h6c; // 'j' row 6
 			11'd855: font_row = 8'h38; // 'j' row 7
+
 			11'd856: font_row = 8'h60; // 'k' row 0
 			11'd857: font_row = 8'h60; // 'k' row 1
 			11'd858: font_row = 8'h66; // 'k' row 2
@@ -392,6 +439,7 @@ module font_rom (
 			11'd861: font_row = 8'h6c; // 'k' row 5
 			11'd862: font_row = 8'h66; // 'k' row 6
 			11'd863: font_row = 8'h00; // 'k' row 7
+
 			11'd864: font_row = 8'h38; // 'l' row 0
 			11'd865: font_row = 8'h18; // 'l' row 1
 			11'd866: font_row = 8'h18; // 'l' row 2
@@ -400,6 +448,7 @@ module font_rom (
 			11'd869: font_row = 8'h18; // 'l' row 5
 			11'd870: font_row = 8'h3c; // 'l' row 6
 			11'd871: font_row = 8'h00; // 'l' row 7
+
 			11'd872: font_row = 8'h00; // 'm' row 0
 			11'd873: font_row = 8'h00; // 'm' row 1
 			11'd874: font_row = 8'h6c; // 'm' row 2
@@ -408,6 +457,7 @@ module font_rom (
 			11'd877: font_row = 8'h6c; // 'm' row 5
 			11'd878: font_row = 8'h6c; // 'm' row 6
 			11'd879: font_row = 8'h00; // 'm' row 7
+
 			11'd880: font_row = 8'h00; // 'n' row 0
 			11'd881: font_row = 8'h00; // 'n' row 1
 			11'd882: font_row = 8'h7c; // 'n' row 2
@@ -416,6 +466,7 @@ module font_rom (
 			11'd885: font_row = 8'h66; // 'n' row 5
 			11'd886: font_row = 8'h66; // 'n' row 6
 			11'd887: font_row = 8'h00; // 'n' row 7
+
 			11'd888: font_row = 8'h00; // 'o' row 0
 			11'd889: font_row = 8'h00; // 'o' row 1
 			11'd890: font_row = 8'h3c; // 'o' row 2
@@ -424,6 +475,7 @@ module font_rom (
 			11'd893: font_row = 8'h66; // 'o' row 5
 			11'd894: font_row = 8'h3c; // 'o' row 6
 			11'd895: font_row = 8'h00; // 'o' row 7
+
 			11'd896: font_row = 8'h00; // 'p' row 0
 			11'd897: font_row = 8'h00; // 'p' row 1
 			11'd898: font_row = 8'h7c; // 'p' row 2
@@ -432,6 +484,7 @@ module font_rom (
 			11'd901: font_row = 8'h7c; // 'p' row 5
 			11'd902: font_row = 8'h60; // 'p' row 6
 			11'd903: font_row = 8'h60; // 'p' row 7
+
 			11'd904: font_row = 8'h00; // 'q' row 0
 			11'd905: font_row = 8'h00; // 'q' row 1
 			11'd906: font_row = 8'h3e; // 'q' row 2
@@ -440,6 +493,7 @@ module font_rom (
 			11'd909: font_row = 8'h3e; // 'q' row 5
 			11'd910: font_row = 8'h0c; // 'q' row 6
 			11'd911: font_row = 8'h0c; // 'q' row 7
+
 			11'd912: font_row = 8'h00; // 'r' row 0
 			11'd913: font_row = 8'h00; // 'r' row 1
 			11'd914: font_row = 8'h6e; // 'r' row 2
@@ -448,6 +502,7 @@ module font_rom (
 			11'd917: font_row = 8'h60; // 'r' row 5
 			11'd918: font_row = 8'h60; // 'r' row 6
 			11'd919: font_row = 8'h00; // 'r' row 7
+
 			11'd920: font_row = 8'h00; // 's' row 0
 			11'd921: font_row = 8'h00; // 's' row 1
 			11'd922: font_row = 8'h3c; // 's' row 2
@@ -456,6 +511,7 @@ module font_rom (
 			11'd925: font_row = 8'h03; // 's' row 5
 			11'd926: font_row = 8'h3c; // 's' row 6
 			11'd927: font_row = 8'h00; // 's' row 7
+
 			11'd928: font_row = 8'h30; // 't' row 0
 			11'd929: font_row = 8'h30; // 't' row 1
 			11'd930: font_row = 8'hfc; // 't' row 2
@@ -464,6 +520,7 @@ module font_rom (
 			11'd933: font_row = 8'h32; // 't' row 5
 			11'd934: font_row = 8'h1c; // 't' row 6
 			11'd935: font_row = 8'h00; // 't' row 7
+
 			11'd936: font_row = 8'h00; // 'u' row 0
 			11'd937: font_row = 8'h00; // 'u' row 1
 			11'd938: font_row = 8'h66; // 'u' row 2
@@ -472,6 +529,7 @@ module font_rom (
 			11'd941: font_row = 8'h66; // 'u' row 5
 			11'd942: font_row = 8'h3e; // 'u' row 6
 			11'd943: font_row = 8'h00; // 'u' row 7
+
 			11'd944: font_row = 8'h00; // 'v' row 0
 			11'd945: font_row = 8'h00; // 'v' row 1
 			11'd946: font_row = 8'h66; // 'v' row 2
@@ -480,6 +538,7 @@ module font_rom (
 			11'd949: font_row = 8'h3c; // 'v' row 5
 			11'd950: font_row = 8'h18; // 'v' row 6
 			11'd951: font_row = 8'h00; // 'v' row 7
+
 			11'd952: font_row = 8'h00; // 'w' row 0
 			11'd953: font_row = 8'h00; // 'w' row 1
 			11'd954: font_row = 8'h44; // 'w' row 2
@@ -488,6 +547,7 @@ module font_rom (
 			11'd957: font_row = 8'h54; // 'w' row 5
 			11'd958: font_row = 8'h6c; // 'w' row 6
 			11'd959: font_row = 8'h28; // 'w' row 7
+
 			11'd960: font_row = 8'h00; // 'x' row 0
 			11'd961: font_row = 8'h00; // 'x' row 1
 			11'd962: font_row = 8'h66; // 'x' row 2
@@ -496,6 +556,7 @@ module font_rom (
 			11'd965: font_row = 8'h3c; // 'x' row 5
 			11'd966: font_row = 8'h66; // 'x' row 6
 			11'd967: font_row = 8'h00; // 'x' row 7
+
 			11'd968: font_row = 8'h00; // 'y' row 0
 			11'd969: font_row = 8'h00; // 'y' row 1
 			11'd970: font_row = 8'h66; // 'y' row 2
@@ -504,6 +565,7 @@ module font_rom (
 			11'd973: font_row = 8'h3e; // 'y' row 5
 			11'd974: font_row = 8'h0c; // 'y' row 6
 			11'd975: font_row = 8'h7c; // 'y' row 7
+
 			11'd976: font_row = 8'h00; // 'z' row 0
 			11'd977: font_row = 8'h00; // 'z' row 1
 			11'd978: font_row = 8'h7e; // 'z' row 2
@@ -512,6 +574,70 @@ module font_rom (
 			11'd981: font_row = 8'h30; // 'z' row 5
 			11'd982: font_row = 8'h7e; // 'z' row 6
 			11'd983: font_row = 8'h00; // 'z' row 7
+
+			11'd352: font_row = 8'h00; // 'comma' row 0
+			11'd353: font_row = 8'h00; // 'comma' row 1
+			11'd354: font_row = 8'h00; // 'comma' row 2
+			11'd355: font_row = 8'h00; // 'comma' row 3
+			11'd356: font_row = 8'h00; // 'comma' row 4
+			11'd357: font_row = 8'h30; // 'comma' row 5
+			11'd358: font_row = 8'h20; // 'comma' row 6
+			11'd359: font_row = 8'h40; // 'comma' row 7
+
+			11'd368: font_row = 8'h00; // 'period' row 0
+			11'd369: font_row = 8'h00; // 'period' row 1
+			11'd370: font_row = 8'h00; // 'period' row 2
+			11'd371: font_row = 8'h00; // 'period' row 3
+			11'd372: font_row = 8'h00; // 'period' row 4
+			11'd373: font_row = 8'h00; // 'period' row 5
+			11'd374: font_row = 8'h30; // 'period' row 6
+			11'd375: font_row = 8'h30; // 'period' row 7
+
+			11'd376: font_row = 8'h00; // 'slash' row 0
+			11'd377: font_row = 8'h04; // 'slash' row 1
+			11'd378: font_row = 8'h08; // 'slash' row 2
+			11'd379: font_row = 8'h08; // 'slash' row 3
+			11'd380: font_row = 8'h10; // 'slash' row 4
+			11'd381: font_row = 8'h10; // 'slash' row 5
+			11'd382: font_row = 8'h20; // 'slash' row 6
+			11'd383: font_row = 8'h00; // 'slash' row 7
+
+			11'd472: font_row = 8'h00; // 'semicolon' row 0
+			11'd473: font_row = 8'h00; // 'semicolon' row 1
+			11'd474: font_row = 8'h30; // 'semicolon' row 2
+			11'd475: font_row = 8'h30; // 'semicolon' row 3
+			11'd476: font_row = 8'h00; // 'semicolon' row 4
+			11'd477: font_row = 8'h30; // 'semicolon' row 5
+			11'd478: font_row = 8'h20; // 'semicolon' row 6
+			11'd479: font_row = 8'h40; // 'semicolon' row 7
+
+			11'd312: font_row = 8'h18; // 'apostrophe' row 0
+			11'd313: font_row = 8'h18; // 'apostrophe' row 1
+			11'd314: font_row = 8'h30; // 'apostrophe' row 2
+			11'd315: font_row = 8'h00; // 'apostrophe' row 3
+			11'd316: font_row = 8'h00; // 'apostrophe' row 4
+			11'd317: font_row = 8'h00; // 'apostrophe' row 5
+			11'd318: font_row = 8'h00; // 'apostrophe' row 6
+			11'd319: font_row = 8'h00; // 'apostrophe' row 7
+
+			11'd360: font_row = 8'h00; // 'minus' row 0
+			11'd361: font_row = 8'h00; // 'minus' row 1
+			11'd362: font_row = 8'h00; // 'minus' row 2
+			11'd363: font_row = 8'h7e; // 'minus' row 3
+			11'd364: font_row = 8'h00; // 'minus' row 4
+			11'd365: font_row = 8'h00; // 'minus' row 5
+			11'd366: font_row = 8'h00; // 'minus' row 6
+			11'd367: font_row = 8'h00; // 'minus' row 7
+
+			11'd488: font_row = 8'h00; // 'equals' row 0
+			11'd489: font_row = 8'h00; // 'equals' row 1
+			11'd490: font_row = 8'h7e; // 'equals' row 2
+			11'd491: font_row = 8'h00; // 'equals' row 3
+			11'd492: font_row = 8'h7e; // 'equals' row 4
+			11'd493: font_row = 8'h00; // 'equals' row 5
+			11'd494: font_row = 8'h00; // 'equals' row 6
+			11'd495: font_row = 8'h00; // 'equals' row 7
+
 			default: font_row = 8'h00;
 		endcase
 	end

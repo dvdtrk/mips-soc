@@ -57,6 +57,22 @@ module ps2_receiver (
 		end
 	end
 
+	// Self correcting resync before every keypress
+	localparam int IDLE_RESYNC_THRESHOLD = 250000; // ~5ms at 50MHz
+
+	logic [17:0] idle_counter;
+	always_ff @(posedge clock or posedge reset) begin
+		if (reset)
+			idle_counter <= 18'd0;
+		else if (falling_edge)
+			idle_counter <= 18'd0;
+		else if (clk_clean && (idle_counter < IDLE_RESYNC_THRESHOLD))
+			idle_counter <= idle_counter + 18'd1;
+	end
+
+	logic force_resync;
+	assign force_resync = (idle_counter >= IDLE_RESYNC_THRESHOLD);
+
 	// collect an 11-bit frame: 
     // start (0)
     // 8 data bits LSB first 
@@ -92,6 +108,8 @@ module ps2_receiver (
 					end
 					default: bit_index <= 4'd0;
 				endcase
+			end else if (force_resync) begin
+				bit_index <= 4'd0;
 			end
 		end
 	end

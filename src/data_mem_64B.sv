@@ -1,4 +1,4 @@
-module data_memory_64B (
+module data_memory_64B ( // is actually 192 bytes not 64
 	input  logic        clock_dm,
 	input  logic        reset_dm,
 	input  logic [31:0] address_dm,

@@ -15,7 +15,19 @@ module microcomputer (
 	output logic [3:0] VGA_G,
 	output logic [3:0] VGA_B,
 	input  logic       PS2_KBD_CLK,   // ARDUINO_IO[3] / D3
-	input  logic       PS2_KBD_DATA   // ARDUINO_IO[2] / D2
+	input  logic       PS2_KBD_DATA,   // ARDUINO_IO[2] / D2
+
+	output logic [12:0] DRAM_ADDR,
+	output logic [1:0]  DRAM_BA,
+	output logic        DRAM_CAS_N,
+	output logic        DRAM_CKE,
+	output logic        DRAM_CLK,
+	output logic        DRAM_CS_N,
+	inout  wire  [15:0] DRAM_DQ,
+	output logic        DRAM_LDQM,
+	output logic        DRAM_RAS_N,
+	output logic        DRAM_UDQM,
+	output logic        DRAM_WE_N
 );
 
 	//---- Signal declarations ----
@@ -66,7 +78,7 @@ module microcomputer (
 	logic [12:0] txt_write_addr;
 	assign is_fb_region     = (address >= FB_BASE)  && (address < FB_BASE  + FB_BYTES);
 	assign is_txt_region    = (address >= TXT_BASE) && (address < TXT_BASE + TXT_BYTES);
-	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region && !is_kbd_ack_region && !is_key_event_ack_region;
+	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region && !is_kbd_ack_region && !is_key_event_ack_region  && !is_cursor_pos_region;
 	assign memory_read_dm   = memory_read  && !is_fb_region && !is_txt_region && !is_kbd_data_region && !is_kbd_status_region && !is_key_event_data_region && !is_key_event_status_region;
 	assign memory_write_fb  = memory_write &&  is_fb_region;
 	assign memory_write_txt = memory_write &&  is_txt_region;
@@ -465,6 +477,26 @@ module microcomputer (
 			plusone4 = Readdata[19:16];
 			plusone5 = pc[3:0];
 
+
+
+		end else if (SW[5:1] == 5'b11000) begin // SDRAM test: expected value on failure
+			plusone = fail_expected[3:0];
+			plusone1 = fail_expected[7:4];
+			plusone2 = fail_expected[11:8];
+			plusone3 = fail_expected[15:12];
+			plusone4 = fail_expected[19:16];
+			plusone5 = {test_finished, test_passed, 2'b00}; // 1_1=passed, 1_0=failed, 0_x=still running
+
+		end else if (SW[5:1] == 5'b11001) begin // SDRAM test: actual value read back on failure
+			plusone = fail_actual[3:0];
+			plusone1 = fail_actual[7:4];
+			plusone2 = fail_actual[11:8];
+			plusone3 = fail_actual[15:12];
+			plusone4 = fail_actual[19:16];
+			plusone5 = {test_finished, test_passed, 2'b00};
+
+
+
 		end else begin
 			plusone  = 4'b0000;
 			plusone1 = 4'b0000;
@@ -486,5 +518,68 @@ module microcomputer (
 	// in the architecture, same pre-existing gap as overflow_mips/
 	// invalid_mips, carried over faithfully rather than silently patched.
 	// Worth wiring up when real debug/status LEDs are added.
+
+
+
+	// SDRAM hardware test --------------------------------------------------------------------
+	logic [23:0] sdram_word_addr;
+	logic [31:0] sdram_write_data;
+	logic        sdram_read_req, sdram_write_req;
+	logic [31:0] sdram_read_data;
+	logic        sdram_busy, sdram_done;
+
+	sdram_controller SDRAM (
+		.clock      (CLOCK_50),
+		.reset      (reset),
+		.word_addr  (sdram_word_addr),
+		.write_data (sdram_write_data),
+		.read_req   (sdram_read_req),
+		.write_req  (sdram_write_req),
+		.read_data  (sdram_read_data),
+		.busy       (sdram_busy),
+		.done       (sdram_done),
+		.DRAM_ADDR  (DRAM_ADDR),
+		.DRAM_BA    (DRAM_BA),
+		.DRAM_CAS_N (DRAM_CAS_N),
+		.DRAM_CKE   (DRAM_CKE),
+		.DRAM_CLK   (DRAM_CLK),
+		.DRAM_CS_N  (DRAM_CS_N),
+		.DRAM_DQ    (DRAM_DQ),
+		.DRAM_LDQM  (DRAM_LDQM),
+		.DRAM_RAS_N (DRAM_RAS_N),
+		.DRAM_UDQM  (DRAM_UDQM),
+		.DRAM_WE_N  (DRAM_WE_N)
+	);
+
+	logic        test_passed, test_finished, test_retention_wait;
+	logic [31:0] fail_expected, fail_actual;
+
+	sdram_selftest SDRAM_SELFTEST (
+		.clock          (CLOCK_50),
+		.reset          (reset),
+		.word_addr      (sdram_word_addr),
+		.write_data     (sdram_write_data),
+		.read_req       (sdram_read_req),
+		.write_req      (sdram_write_req),
+		.read_data      (sdram_read_data),
+		.busy           (sdram_busy),
+		.done           (sdram_done),
+		.passed         (test_passed),
+		.finished       (test_finished),
+		.retention_wait (test_retention_wait),
+		.fail_addr      (),
+		.fail_expected  (fail_expected),
+		.fail_actual    (fail_actual)
+	);
+
+	// LEDR[0] = test finished and passed
+	// LEDR[1] = test finished and failed
+	// LEDR[2] = in the retention wait between writing and reading back
+	assign LEDR[0] = test_finished && test_passed;
+	assign LEDR[1] = test_finished && !test_passed;
+	assign LEDR[2] = test_retention_wait;
+	assign LEDR[9:3] = 7'b0;
+
+
 
 endmodule

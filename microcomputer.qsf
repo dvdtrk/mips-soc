@@ -238,6 +238,8 @@ set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_location_assignment PIN_AB9 -to PS2_KBD_CLK
 set_location_assignment PIN_Y10 -to PS2_KBD_DATA
+set_global_assignment -name SYSTEMVERILOG_FILE src/sdram_selftest.sv
+set_global_assignment -name SYSTEMVERILOG_FILE src/sdram_controller.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/scancode_to_ascii.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/ps2_receiver.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/text_buffer.sv

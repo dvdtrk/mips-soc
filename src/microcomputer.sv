@@ -1,4 +1,7 @@
-module microcomputer (
+module microcomputer #(
+	parameter int FREERUN_BIT = 14, // ~1.5kHz free-run clock
+	parameter int SELFTEST_RETENTION_CYCLES = 50_000_000
+) (
 	input  logic       CLOCK_50,   // 50MHz clock on the DE10-Lite board
 	input  logic [1:0] KEY,        // keys/buttons (KEY[0]-KEY[1])
 	input  logic [9:0] SW,         // switches (SW[9]..SW[0])
@@ -39,6 +42,8 @@ module microcomputer (
 	logic [31:0] address;
 	logic [31:0] Writedata;
 	logic        memory_read, memory_write;
+	logic 		 sdram_stall;
+	logic [31:0] sdram_read_data;
 	logic [31:0] Readdata;
 
     //---------------------------------------------------------------------
@@ -59,6 +64,7 @@ module microcomputer (
 	localparam logic [31:0] KEY_EVENT_STATUS_ADDR 	= 32'h00070014;
 	localparam logic [31:0] KEY_EVENT_ACK_ADDR		= 32'h00070018;
 	localparam logic [31:0] CURSOR_POS_ADDR 		= 32'h00070020;
+	localparam logic [31:0] LED_ADDR                = 32'h00070030; // SDRAM: 64MB at 0x04000000 - 0x07FFFFFF (address[31:26] == 1)
 
 	logic is_kbd_data_region, is_kbd_status_region, is_kbd_ack_region;
 	assign is_kbd_data_region 	= (address == KBD_DATA_ADDR);
@@ -71,6 +77,9 @@ module microcomputer (
 	assign is_key_event_ack_region    = (address == KEY_EVENT_ACK_ADDR);
 	logic is_cursor_pos_region;
 	assign is_cursor_pos_region = (address == CURSOR_POS_ADDR);
+	logic is_led_region, is_sdram_region;
+	assign is_led_region   = (address == LED_ADDR);
+	assign is_sdram_region = (address[31:26] == 6'd1); // 0x04000000 - 0x07FFFFFF
 
 	logic        is_fb_region, is_txt_region;
 	logic        memory_write_dm, memory_write_fb, memory_write_txt, memory_read_dm;
@@ -78,8 +87,10 @@ module microcomputer (
 	logic [12:0] txt_write_addr;
 	assign is_fb_region     = (address >= FB_BASE)  && (address < FB_BASE  + FB_BYTES);
 	assign is_txt_region    = (address >= TXT_BASE) && (address < TXT_BASE + TXT_BYTES);
-	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region && !is_kbd_ack_region && !is_key_event_ack_region  && !is_cursor_pos_region;
-	assign memory_read_dm   = memory_read  && !is_fb_region && !is_txt_region && !is_kbd_data_region && !is_kbd_status_region && !is_key_event_data_region && !is_key_event_status_region;
+	assign memory_write_dm  = memory_write && !is_fb_region && !is_txt_region && !is_kbd_ack_region && !is_key_event_ack_region  
+								&& !is_cursor_pos_region && !is_led_region && !is_sdram_region;
+	assign memory_read_dm   = memory_read  && !is_fb_region && !is_txt_region && !is_kbd_data_region && !is_kbd_status_region 
+								&& !is_key_event_data_region && !is_key_event_status_region && !is_sdram_region;
 	assign memory_write_fb  = memory_write &&  is_fb_region;
 	assign memory_write_txt = memory_write &&  is_txt_region;
 	assign fb_write_addr    = (address - FB_BASE)  >> 2;
@@ -135,7 +146,7 @@ module microcomputer (
 	end
 	// bit 14 of a counter clocked at 50MHz toggles at roughly 1.5kHz
 	logic freerun_clock;
-	assign freerun_clock = freerun_counter[14];
+	assign freerun_clock = freerun_counter[FREERUN_BIT];
 
 	// synchronizes KEY[1] and keeps track of its previous value
 	logic key1_sync1, key1_sync2, key1_prev;
@@ -169,7 +180,7 @@ module microcomputer (
 	always_ff @(posedge CLOCK_50 or posedge reset) begin
 		if (reset)
 			clock_gated <= 1'b0;
-		else if (!paused)
+		else if (!paused && !sdram_stall)
 			clock_gated <= freerun_clock;
 	end
 
@@ -328,7 +339,8 @@ module microcomputer (
 	end
 
 	logic [31:0] Readdata_cpu;
-	assign Readdata_cpu = is_kbd_status_region ? {31'b0, kbd_new_data} :
+	assign Readdata_cpu = is_sdram_region ? sdram_read_data :
+							is_kbd_status_region ? {31'b0, kbd_new_data} :
 	                    	is_kbd_data_region   ? {24'b0, kbd_scancode_held} :
 							is_key_event_status_region ? {31'b0, key_event_ready} :
 	                    	is_key_event_data_region   ? {24'b0, key_event_char} :
@@ -521,12 +533,29 @@ module microcomputer (
 
 
 
-	// SDRAM hardware test --------------------------------------------------------------------
+	// SDRAM --------------------------------------------------------------------
+
+	// Two parts share the controller. After reset, sdram_selftest runs the poweron check. O
+	// Once that finishes, the CPU owns the controller.
+	// A load or store whose address falls in the SDRAM region becomes a request,
+	// and the CPU clock is held until the controller reports done
+
+	logic [23:0] st_word_addr;
+	logic [31:0] st_write_data;
+	logic        st_read_req, st_write_req;
 	logic [23:0] sdram_word_addr;
 	logic [31:0] sdram_write_data;
 	logic        sdram_read_req, sdram_write_req;
-	logic [31:0] sdram_read_data;
 	logic        sdram_busy, sdram_done;
+
+	logic        test_passed, test_finished, test_retention_wait;
+	logic [31:0] fail_expected, fail_actual;
+
+	logic cpu_read_req, cpu_write_req;
+	assign sdram_word_addr  = test_finished ? address[25:2] : st_word_addr;
+	assign sdram_write_data = test_finished ? Writedata     : st_write_data;
+	assign sdram_read_req   = test_finished ? cpu_read_req  : st_read_req;
+	assign sdram_write_req  = test_finished ? cpu_write_req : st_write_req;
 
 	sdram_controller SDRAM (
 		.clock      (CLOCK_50),
@@ -551,16 +580,13 @@ module microcomputer (
 		.DRAM_WE_N  (DRAM_WE_N)
 	);
 
-	logic        test_passed, test_finished, test_retention_wait;
-	logic [31:0] fail_expected, fail_actual;
-
-	sdram_selftest SDRAM_SELFTEST (
+	sdram_selftest #(.RETENTION_CYCLES(SELFTEST_RETENTION_CYCLES)) SDRAM_SELFTEST (
 		.clock          (CLOCK_50),
 		.reset          (reset),
-		.word_addr      (sdram_word_addr),
-		.write_data     (sdram_write_data),
-		.read_req       (sdram_read_req),
-		.write_req      (sdram_write_req),
+		.word_addr      (st_word_addr),
+		.write_data     (st_write_data),
+		.read_req       (st_read_req),
+		.write_req      (st_write_req),
 		.read_data      (sdram_read_data),
 		.busy           (sdram_busy),
 		.done           (sdram_done),
@@ -572,13 +598,72 @@ module microcomputer (
 		.fail_actual    (fail_actual)
 	);
 
+	// The CPU clock as seen from the 50MHz domain, so a new CPU cycle can be
+	// recognised (a new instruction has just entered the MEM stage).
+	logic cpu_clk_s1, cpu_clk_s2, cpu_clk_prev;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset) begin
+			cpu_clk_s1   <= 1'b0;
+			cpu_clk_s2   <= 1'b0;
+			cpu_clk_prev <= 1'b0;
+		end else begin
+			cpu_clk_s1   <= clock;
+			cpu_clk_s2   <= cpu_clk_s1;
+			cpu_clk_prev <= cpu_clk_s2;
+		end
+	end
+	logic cpu_clock_edge;
+	assign cpu_clock_edge = cpu_clk_s2 & ~cpu_clk_prev;
+
+	// The instruction in the MEM stage is a load or store to SDRAM and has not been served yet. 
+	// That is exactly when the CPU clock must be held.
+	// "served" is cleared when a new instruction enters MEM and set when the  controller finishes, 
+	// so each access happens exactly once even though the same address stays on the bus for the whole CPU cycle.
+	logic sdram_access, sdram_served, cpu_req_pending;
+	assign sdram_access = is_sdram_region && (memory_read || memory_write);
+	assign sdram_stall  = sdram_access && !sdram_served;
+
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset) begin
+			sdram_served    <= 1'b0;
+			cpu_req_pending <= 1'b0;
+			cpu_read_req    <= 1'b0;
+			cpu_write_req   <= 1'b0;
+		end else begin
+			cpu_read_req  <= 1'b0;
+			cpu_write_req <= 1'b0;
+			if (cpu_clock_edge) begin
+				sdram_served <= 1'b0;
+			end else if (cpu_req_pending) begin
+				if (sdram_done) begin
+					cpu_req_pending <= 1'b0;
+					sdram_served    <= 1'b1;
+				end
+			end else if (sdram_access && !sdram_served && test_finished) begin
+				cpu_req_pending <= 1'b1;
+				cpu_read_req    <= memory_read;
+				cpu_write_req   <= memory_write;
+			end
+		end
+	end
+
+	// A small LED register for programs: LEDR[9:3] show its low 7 bits.
+	logic [6:0] led_reg;
+	always_ff @(posedge CLOCK_50 or posedge reset) begin
+		if (reset)
+			led_reg <= 7'd0;
+		else if (memory_write && is_led_region)
+			led_reg <= Writedata[6:0];
+	end
+	
 	// LEDR[0] = test finished and passed
 	// LEDR[1] = test finished and failed
 	// LEDR[2] = in the retention wait between writing and reading back
+	// LEDR[9:3] = LED register (the CPU's SDRAM test writes 1 / 3 / 5)
 	assign LEDR[0] = test_finished && test_passed;
 	assign LEDR[1] = test_finished && !test_passed;
 	assign LEDR[2] = test_retention_wait;
-	assign LEDR[9:3] = 7'b0;
+	assign LEDR[9:3] = led_reg;
 
 
 

@@ -11,7 +11,7 @@ module inst_memory_128B (
 	// 28(10, beq) --> 2C(11, add) --> 30(12, add) --> 34(13, add) --> 38(14, j) -->
 	// 40(16, beq) --> 4C(19, add) --> 50(20, beq) --> 28(10, beq) --> 3C(15, j) --> 54(21, add)
 
-	logic [31:0] ROM [0:153];
+	logic [31:0] ROM [0:238];
 
 	initial begin
 		// Registers and DM contain values from a previous execution when reset.
@@ -31,7 +31,6 @@ module inst_memory_128B (
 		ROM[10] = 32'h8cc10000; // lw  $1  0($6)
 		ROM[11] = 32'h8cc10004; // lw  $1  4($6)
 
-		// put this code at the end
 		ROM[12] = 32'hACC00000; // sw $0, 0($6)
 		ROM[13] = 32'hACC00004; // sw $0, 4($6)
 		ROM[14] = 32'h00005020; // add $10, $0, $0
@@ -164,6 +163,7 @@ module inst_memory_128B (
 		                         //    the key-event data address
 		// POLL loop starts here (0x1c8): check for a key, and only act
 		// once one is actually ready
+
 		ROM[114] = 32'h20147fff; // 1c8 addi $20, $0, 32767, building the cursor
 		                         //    position register's address, 0x70020
 		ROM[115] = 32'h22947fff; // 1cc addi $20, $20, 32767
@@ -183,41 +183,136 @@ module inst_memory_128B (
 		ROM[129] = 32'hae8c0000; // 204 sw $12, 0($20), show the cursor at the
 		                         //    starting position right away, before
 		                         //    any character has been typed
+
+
+		// SDRAM test from the CPU ------------------------------------------------------------
+		// Writes four values to SDRAM through ordinary sw instructions (two
+		// neighbors, a second bank, and the last word of the chip), reads them
+		// back with lw, and compares. LED register: 1 = running, 3 = passed,
+		// 5 = failed. Also prints P or F at the end of the "hello world" line.
+		ROM[130] = 32'h20010001; // 208 addi $1, $0, 1, LED code 1 = SDRAM test running
+		ROM[131] = 32'haec10020; // 20c sw $1, 32($22), LED register at 0x70030 (0x70010 + 0x20)
+		ROM[132] = 32'h20120001; // 210 addi $18, $0, 1, start doubling
+		ROM[133] = 32'h02529020; // 214 add $18, $18, $18, x2
+		ROM[134] = 32'h02529020; // 218 add $18, $18, $18
+		ROM[135] = 32'h02529020; // 21c add $18, $18, $18
+		ROM[136] = 32'h02529020; // 220 add $18, $18, $18
+		ROM[137] = 32'h02529020; // 224 add $18, $18, $18
+		ROM[138] = 32'h02529020; // 228 add $18, $18, $18
+		ROM[139] = 32'h02529020; // 22c add $18, $18, $18
+		ROM[140] = 32'h02529020; // 230 add $18, $18, $18
+		ROM[141] = 32'h02529020; // 234 add $18, $18, $18
+		ROM[142] = 32'h02529020; // 238 add $18, $18, $18
+		ROM[143] = 32'h02529020; // 23c add $18, $18, $18
+		ROM[144] = 32'h02529020; // 240 add $18, $18, $18
+		ROM[145] = 32'h02529020; // 244 add $18, $18, $18
+		ROM[146] = 32'h02529020; // 248 add $18, $18, $18
+		ROM[147] = 32'h02529020; // 24c add $18, $18, $18
+		ROM[148] = 32'h02529020; // 250 add $18, $18, $18
+		ROM[149] = 32'h02529020; // 254 add $18, $18, $18
+		ROM[150] = 32'h02529020; // 258 add $18, $18, $18
+		ROM[151] = 32'h02529020; // 25c add $18, $18, $18
+		ROM[152] = 32'h02529020; // 260 add $18, $18, $18
+		ROM[153] = 32'h02529020; // 264 add $18, $18, $18
+		ROM[154] = 32'h02529020; // 268 add $18, $18, $18
+		ROM[155] = 32'h02529020; // 26c add $18, $18, $18
+		ROM[156] = 32'h02529020; // 270 add $18, $18, $18
+		ROM[157] = 32'h02528020; // 274 add $16, $18, $18, 2^25
+		ROM[158] = 32'h02108020; // 278 add $16, $16, $16, $16 = 0x04000000, SDRAM base
+		ROM[159] = 32'h02129820; // 27c add $19, $16, $18, $19 = 0x05000000, bank 1
+		ROM[160] = 32'h02107820; // 280 add $15, $16, $16, 0x08000000
+		ROM[161] = 32'h21effffc; // 284 addi $15, $15, -4, $15 = 0x07FFFFFC, the last word of the SDRAM
+		ROM[162] = 32'h20027fff; // 288 addi $2, $0, 32767
+		ROM[163] = 32'h00421020; // 28c add $2, $2, $2, x2
+		ROM[164] = 32'h00421020; // 290 add $2, $2, $2
+		ROM[165] = 32'h00421020; // 294 add $2, $2, $2
+		ROM[166] = 32'h00421020; // 298 add $2, $2, $2
+		ROM[167] = 32'h00421020; // 29c add $2, $2, $2
+		ROM[168] = 32'h00421020; // 2a0 add $2, $2, $2
+		ROM[169] = 32'h00421020; // 2a4 add $2, $2, $2
+		ROM[170] = 32'h00421020; // 2a8 add $2, $2, $2
+		ROM[171] = 32'h00421020; // 2ac add $2, $2, $2
+		ROM[172] = 32'h00421020; // 2b0 add $2, $2, $2
+		ROM[173] = 32'h00421020; // 2b4 add $2, $2, $2
+		ROM[174] = 32'h00421020; // 2b8 add $2, $2, $2
+		ROM[175] = 32'h00421020; // 2bc add $2, $2, $2
+		ROM[176] = 32'h00421020; // 2c0 add $2, $2, $2
+		ROM[177] = 32'h00421020; // 2c4 add $2, $2, $2
+		ROM[178] = 32'h00421020; // 2c8 add $2, $2, $2
+		ROM[179] = 32'h00421020; // 2cc add $2, $2, $2
+		ROM[180] = 32'h20425a5a; // 2d0 addi $2, $2, 23130, $2 = 0xFFFE5A5A
+		ROM[181] = 32'h00421820; // 2d4 add $3, $2, $2, $3 = second value
+		ROM[182] = 32'h00632020; // 2d8 add $4, $3, $3, $4 = third value
+		ROM[183] = 32'h00832820; // 2dc add $5, $4, $3, $5 = fourth value
+		ROM[184] = 32'hae020000; // 2e0 sw $2, 0($16), bank 0, word 0
+		ROM[185] = 32'hae030004; // 2e4 sw $3, 4($16), bank 0, the NEXT word (neighbor)
+		ROM[186] = 32'hae640000; // 2e8 sw $4, 0($19), bank 1
+		ROM[187] = 32'hade50000; // 2ec sw $5, 0($15), last word of the chip
+		ROM[188] = 32'h8e060000; // 2f0 lw $6, 0($16)
+		ROM[189] = 32'h8e070004; // 2f4 lw $7, 4($16)
+		ROM[190] = 32'h8e6a0000; // 2f8 lw $10, 0($19)
+		ROM[191] = 32'h8deb0000; // 2fc lw $11, 0($15)
+		ROM[192] = 32'h00c20822; // 300 sub $1, $6, $2
+		ROM[193] = 32'h00e37022; // 304 sub $14, $7, $3
+		ROM[194] = 32'h0144a822; // 308 sub $21, $10, $4
+		ROM[195] = 32'h0165b822; // 30c sub $23, $11, $5
+		ROM[196] = 32'h002e0825; // 310 or  $1, $1, $14
+		ROM[197] = 32'h00350825; // 314 or  $1, $1, $21
+		ROM[198] = 32'h00370825; // 318 or  $1, $1, $23, $1 == 0 only if all four matched
+		ROM[199] = 32'h1020000a; // 31c beq $1, $0, PASS (offset 10)
+		ROM[200] = 32'h00000020; // 320 nop (delay slot 1 of 3)
+		ROM[201] = 32'h00000020; // 324 nop (delay slot 2 of 3)
+		ROM[202] = 32'h00000020; // 328 nop (delay slot 3 of 3)
+		ROM[203] = 32'h20010005; // 32c addi $1, $0, 5, LED code 5 = failed
+		ROM[204] = 32'haec10020; // 330 sw $1, 32($22)
+		ROM[205] = 32'h20010046; // 334 addi $1, $0, 70, 'F'
+		ROM[206] = 32'h218efef0; // 338 addi $14, $12, -272, text buffer row 0, column 12
+		ROM[207] = 32'hadc10000; // 33c sw $1, 0($14), show F on the screen
+		ROM[208] = 32'h080000d7; // 340 j DONE (word 215)
+		ROM[209] = 32'h00000020; // 344 nop (jump delay slot)
+		ROM[210] = 32'h20010003; // 348 addi $1, $0, 3, LED code 3 = passed
+		ROM[211] = 32'haec10020; // 34c sw $1, 32($22)
+		ROM[212] = 32'h20010050; // 350 addi $1, $0, 80, 'P'
+		ROM[213] = 32'h218efef0; // 354 addi $14, $12, -272, text buffer row 0, column 12
+		ROM[214] = 32'hadc10000; // 358 sw $1, 0($14), show P on the screen
+		// ----------------------------------------------------------------------------------
+
+
 		// POLL loop starts here (0x208)
-		ROM[130] = 32'h8ed80004; // 208 lw $24, 4($22), read status
-		ROM[131] = 32'h1300fffe; // 20c beq $24, $0, POLL, no new key yet, loop back
-		ROM[132] = 32'h00000020; // 210 nop (delay slot 1 of 3)
-		ROM[133] = 32'h00000020; // 214 nop (delay slot 2 of 3)
-		ROM[134] = 32'h00000020; // 218 nop (delay slot 3 of 3)
-		ROM[135] = 32'h8ed90000; // 21c lw $25, 0($22), read the character
-		ROM[136] = 32'h201a0008; // 220 addi $26, $0, 8, the ASCII backspace value
-		ROM[137] = 32'h133a0009; // 224 beq $25, $26, BACKSPACE, is this a
+		ROM[215] = 32'h8ed80004; // 208 lw $24, 4($22), read status
+		ROM[216] = 32'h1300fffe; // 20c beq $24, $0, POLL, no new key yet, loop back
+		ROM[217] = 32'h00000020; // 210 nop (delay slot 1 of 3)
+		ROM[218] = 32'h00000020; // 214 nop (delay slot 2 of 3)
+		ROM[219] = 32'h00000020; // 218 nop (delay slot 3 of 3)
+		ROM[220] = 32'h8ed90000; // 21c lw $25, 0($22), read the character
+		ROM[221] = 32'h201a0008; // 220 addi $26, $0, 8, the ASCII backspace value
+		ROM[222] = 32'h133a0009; // 224 beq $25, $26, BACKSPACE, is this a
 		                         //    backspace instead of a normal character?
-		ROM[138] = 32'h00000020; // 228 nop (delay slot 1 of 3)
-		ROM[139] = 32'h00000020; // 22c nop (delay slot 2 of 3)
-		ROM[140] = 32'h00000020; // 230 nop (delay slot 3 of 3)
+		ROM[223] = 32'h00000020; // 228 nop (delay slot 1 of 3)
+		ROM[224] = 32'h00000020; // 22c nop (delay slot 2 of 3)
+		ROM[225] = 32'h00000020; // 230 nop (delay slot 3 of 3)
 		// normal path: write the character and advance
-		ROM[141] = 32'had990000; // 234 sw $25, 0($12), write the character into
+		ROM[226] = 32'had990000; // 234 sw $25, 0($12), write the character into
 		                         //    the text buffer at the current cursor
-		ROM[142] = 32'h218c0004; // 238 addi $12, $12, 4, advance the cursor
-		ROM[143] = 32'hae8c0000; // 23c sw $12, 0($20), update the cursor
+		ROM[227] = 32'h218c0004; // 238 addi $12, $12, 4, advance the cursor
+		ROM[228] = 32'hae8c0000; // 23c sw $12, 0($20), update the cursor
 		                         //    position register so the hardware
 		                         //    cursor indicator moves with it
-		ROM[144] = 32'haec00008; // 240 sw $0, 8($22), acknowledge
-		ROM[145] = 32'h08000082; // 244 j POLL, loop back and keep polling
-		ROM[146] = 32'h00000020; // 248 nop, the jump's delay slot
+		ROM[229] = 32'haec00008; // 240 sw $0, 8($22), acknowledge
+		ROM[230] = 32'h080000d7; // 244 j POLL, loop back and keep polling
+		ROM[231] = 32'h00000020; // 248 nop, the jump's delay slot
 		// BACKSPACE handler (0x24c): move the cursor back one cell and
 		// erase whatever character was there by overwriting it with a
 		// space, rather than actually storing a backspace character
-		ROM[147] = 32'h218cfffc; // 24c addi $12, $12, -4, move cursor back
-		ROM[148] = 32'h201b0020; // 250 addi $27, $0, 32, a space character
-		ROM[149] = 32'had9b0000; // 254 sw $27, 0($12), erase the character
+		ROM[232] = 32'h218cfffc; // 24c addi $12, $12, -4, move cursor back
+		ROM[233] = 32'h201b0020; // 250 addi $27, $0, 32, a space character
+		ROM[234] = 32'had9b0000; // 254 sw $27, 0($12), erase the character
 		                         //    that was there
-		ROM[150] = 32'hae8c0000; // 258 sw $12, 0($20), update the cursor
+		ROM[235] = 32'hae8c0000; // 258 sw $12, 0($20), update the cursor
 		                         //    position register to match
-		ROM[151] = 32'haec00008; // 25c sw $0, 8($22), acknowledge
-		ROM[152] = 32'h08000082; // 260 j POLL, loop back and keep polling
-		ROM[153] = 32'h00000020; // 264 nop, the jump's delay slot
+		ROM[236] = 32'haec00008; // 25c sw $0, 8($22), acknowledge
+		ROM[237] = 32'h080000d7; // 260 j POLL, loop back and keep polling
+		ROM[238] = 32'h00000020; // 264 nop, the jump's delay slot
 	end 
 	
 	// asynchronous / combinational read (word-addressed: pc_im/4)

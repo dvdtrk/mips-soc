@@ -265,16 +265,16 @@ module inst_memory_128B (
 		ROM[202] = 32'h00000020; // 328 nop (delay slot 3 of 3)
 		ROM[203] = 32'h20010005; // 32c addi $1, $0, 5, LED code 5 = failed
 		ROM[204] = 32'haec10020; // 330 sw $1, 32($22)
-		ROM[205] = 32'h20010046; // 334 addi $1, $0, 70, 'F'
-		ROM[206] = 32'h218efef0; // 338 addi $14, $12, -272, text buffer row 0, column 12
-		ROM[207] = 32'hadc10000; // 33c sw $1, 0($14), show F on the screen
+		ROM[205] = 32'h00000020; // nop (F no longer printed)
+		ROM[206] = 32'h00000020; // nop
+		ROM[207] = 32'h00000020; // nop
 		ROM[208] = 32'h080000d7; // 340 j DONE (word 215)
 		ROM[209] = 32'h00000020; // 344 nop (jump delay slot)
 		ROM[210] = 32'h20010003; // 348 addi $1, $0, 3, LED code 3 = passed
 		ROM[211] = 32'haec10020; // 34c sw $1, 32($22)
-		ROM[212] = 32'h20010050; // 350 addi $1, $0, 80, 'P'
-		ROM[213] = 32'h218efef0; // 354 addi $14, $12, -272, text buffer row 0, column 12
-		ROM[214] = 32'hadc10000; // 358 sw $1, 0($14), show P on the screen
+		ROM[212] = 32'h00000020; // nop (P no longer printed)
+		ROM[213] = 32'h00000020; // nop
+		ROM[214] = 32'h00000020; // nop
 		// ----------------------------------------------------------------------------------
 
 

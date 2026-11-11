@@ -64,7 +64,7 @@ module microcomputer #(
 	localparam logic [31:0] KEY_EVENT_STATUS_ADDR 	= 32'h00070014;
 	localparam logic [31:0] KEY_EVENT_ACK_ADDR		= 32'h00070018;
 	localparam logic [31:0] CURSOR_POS_ADDR 		= 32'h00070020;
-	localparam logic [31:0] LED_ADDR                = 32'h00070030; // SDRAM: 64MB at 0x04000000 - 0x07FFFFFF (address[31:26] == 1)
+	localparam logic [31:0] LED_ADDR                = 32'h00070030; // LED register, LEDR[9:3]
 
 	logic is_kbd_data_region, is_kbd_status_region, is_kbd_ack_region;
 	assign is_kbd_data_region 	= (address == KBD_DATA_ADDR);
@@ -79,7 +79,7 @@ module microcomputer #(
 	assign is_cursor_pos_region = (address == CURSOR_POS_ADDR);
 	logic is_led_region, is_sdram_region;
 	assign is_led_region   = (address == LED_ADDR);
-	assign is_sdram_region = (address[31:26] == 6'd1); // 0x04000000 - 0x07FFFFFF
+	assign is_sdram_region = (address[31:26] == 6'd1); // 64MB at 0x04000000 - 0x07FFFFFF
 
 	logic        is_fb_region, is_txt_region;
 	logic        memory_write_dm, memory_write_fb, memory_write_txt, memory_read_dm;
@@ -302,25 +302,25 @@ module microcomputer #(
         	kbd_scancode_held <= kbd_scancode;
 	end
 
-	//This tracks whether the byte that just arrived should be swallowed because the previous byte was one of those two prefixes.
-	logic prev_was_prefix;
-	always_ff @(posedge CLOCK_50 or posedge reset) begin
-		if (reset)
-			prev_was_prefix <= 1'b0;
-		else if (kbd_data_ready) begin
-			if (prev_was_prefix)
-				prev_was_prefix <= 1'b0;
-			else if (kbd_scancode == 8'hF0 || kbd_scancode == 8'hE0)
-				prev_was_prefix <= 1'b1;
-		end
-	end
-
-	logic is_genuine_press;
-	assign is_genuine_press = kbd_data_ready && !prev_was_prefix && (kbd_scancode != 8'hF0) && (kbd_scancode != 8'hE0);
+	// Raw bytes -> key events. ps2_key_decoder keeps track of the 0xE0
+	// (extended) and 0xF0 (release) prefixes, so a release or an extended key
+	// never types anything, and it tracks whether a Shift key is held.
+	logic       key_valid, shift_down;
+	logic [7:0] key_code;
+	ps2_key_decoder KEYDEC (
+		.clock      (CLOCK_50),
+		.reset      (reset),
+		.scancode   (kbd_scancode),
+		.data_ready (kbd_data_ready),
+		.key_valid  (key_valid),
+		.key_code   (key_code),
+		.shift_down (shift_down)
+	);
 
 	logic [7:0] key_ascii;
 	scancode_to_ascii ASCII (
-		.scancode(kbd_scancode),
+		.scancode(key_code),
+		.shift   (shift_down),
 		.ascii   (key_ascii)
 	);
 
@@ -330,7 +330,7 @@ module microcomputer #(
 		if (reset) begin
 			key_event_ready <= 1'b0;
 			key_event_char  <= 8'h00;
-		end else if (is_genuine_press && (key_ascii != 8'h00) && !key_event_ready) begin
+		end else if (key_valid && (key_ascii != 8'h00) && !key_event_ready) begin
 			key_event_ready <= 1'b1;
 			key_event_char  <= key_ascii;
 		end else if (memory_write && is_key_event_ack_region) begin

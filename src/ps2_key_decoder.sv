@@ -2,12 +2,12 @@
 module ps2_key_decoder (
 	input  logic       clock,
 	input  logic       reset,
-	input  logic [7:0] scancode,     // from ps2_receiver
-	input  logic       data_ready,   // one-clock pulse: a new byte arrived
+	input  logic [7:0] scancode, // from ps2_receiver
+	input  logic       data_ready, // one-clock pulse: a new byte arrived
 
-	output logic       key_valid,    // one-clock pulse: a plain key was pressed
-	output logic [7:0] key_code,     // that key's scan code
-	output logic       shift_down    // a Shift key is currently held
+	output logic       key_valid, // one-clock pulse: a plain key was pressed
+	output logic [7:0] key_code, // that key's scan code
+	output logic       shift_down // a Shift key is currently held
 );
 
 	localparam logic [7:0] EXTENDED_PREFIX = 8'hE0;

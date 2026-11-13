@@ -1,3 +1,66 @@
+//=====================================================================
+// BOARD CONTROLS AND DISPLAYS
+//=====================================================================
+	
+// KEY[0]  reset (hold it down)
+// KEY[1]  SW[0]=1 (single-step): one press = one CPU clock
+//         SW[0]=0 (free-run):    one press = pause / resume the CPU
+
+// SW[0]   1 = single-step mode, 0 = free-run (CPU at about 1.5 kHz)
+// SW[1]-SW[5]  choose what the six HEX displays show (table below)
+// SW[6]   1 = keyboard debug on the HEX displays (overrides SW[1]-SW[5]):
+//           HEX1:0 = last raw scancode, HEX2 = 1 if a new key is waiting
+// SW[7]   LED mode:    0 = SDRAM LEDs & CPU LED register, 
+//           			1 = SD card status LEDs
+// SW[8], SW[9]  unused
+
+// HEX display, SW[6] = 0. SW[5:1] is read as one 5-bit code
+// (SW[5] is the top bit, SW[1] the bottom bit). HEX5 is the left digit.
+//   SW[5:1]  switches up      HEX5..HEX0 show
+//   00001    SW1              PC (low 24 bits)
+//   00010    SW2              HEX4..0 = instruction (low 20 bits), HEX5 = PC low digit
+//   00100    SW3              HEX4..0 = write data (low 20 bits),  HEX5 = PC low digit
+//   01000    SW4              HEX4..0 = memory address (low 20 bits), HEX5 = PC low digit
+//   10000    SW5              HEX4..0 = read data (low 20 bits),   HEX5 = PC low digit
+//   11000    SW5+SW4          SDRAM test: expected value on a failure (HEX4..0)
+//   11001    SW5+SW4+SW1      SDRAM test: value actually read back on a failure (HEX4..0)
+//   11010    SW5+SW4+SW2      SD test on a mismatch: HEX1:0 = byte read, HEX3:2 = byte
+//                             expected, HEX4 = block number (low digit)
+//   11011    SW5+SW4+SW2+SW1  SD test: HEX1:0 = error code, HEX3:2 = byte index (low 8 bits),
+//                             HEX4 = {0, 0, card is SDHC, index bit 8}
+//   anything else             zeros, with the PC low digit on HEX5
+
+// In the SDRAM and SD modes HEX5 is a status digit: C = test passed,
+// 8 = test failed, 0 = still running (SD code 11011 also sets bit 1 once the card initialized).
+
+// LEDs, SW[7] = 0 (normal):
+//   LEDR[0] SDRAM power-on test passed     
+//   LEDR[1] SDRAM test failed
+//   LEDR[2] SDRAM test in its retention wait
+//   LEDR[9:3] LED register, written by the CPU at 0x70030
+//             (the CPU's SDRAM test writes 1 = running, 3 = passed, 5 = failed)
+	
+// LEDs, SW[7] = 1 (SD card status):
+//   LEDR[0] card initialized     
+//   LEDR[1] SD test passed     
+// 	 LEDR[2] SD test failed
+//   LEDR[3] card is SDHC/SDXC    
+//   LEDR[4] controller error   
+//   LEDR[9:5] error code (low 5 bits)
+
+//   SD error codes: 
+//		01 CMD0 no reply
+//		02 CMD0 wrong reply
+//      03/04 CMD8, 
+//		05 CMD55,
+//   	06 ACMD41 (card never ready)
+//      07 CMD58
+//   	08 CMD16
+//   	10-13 block read,
+//   	20 data mismatch
+//   	21 wrong byte count
+//=====================================================================
+
 module microcomputer #(
 	parameter int FREERUN_BIT = 14, // ~1.5kHz free-run clock
 	parameter int SELFTEST_RETENTION_CYCLES = 50_000_000
@@ -30,8 +93,24 @@ module microcomputer #(
 	output logic        DRAM_LDQM,
 	output logic        DRAM_RAS_N,
 	output logic        DRAM_UDQM,
-	output logic        DRAM_WE_N
+	output logic        DRAM_WE_N,
+
+	// microSD card breakout (SPI mode) on the Arduino header, using the board's
+	// premade pin names: 
+	// IO10 = CS
+	// IO11 = MOSI
+	// IO12 = MISO (input)
+	// IO13 = SCK
+	inout  wire  [13:10] ARDUINO_IO
 );
+
+	logic SD_CS_N, SD_MOSI, SD_SCK;
+	wire  SD_MISO;
+	assign ARDUINO_IO[10] = SD_CS_N;
+	assign ARDUINO_IO[11] = SD_MOSI;
+	assign ARDUINO_IO[12] = 1'bz; // MISO: the card drives this pin
+	assign ARDUINO_IO[13] = SD_SCK;
+	assign SD_MISO = ARDUINO_IO[12];
 
 	//---- Signal declarations ----
 	logic        reset;
@@ -44,6 +123,10 @@ module microcomputer #(
 	logic        memory_read, memory_write;
 	logic 		 sdram_stall;
 	logic [31:0] sdram_read_data;
+
+	logic        sd1_finished, sd1_got_response;
+	logic [7:0]  sd1_r1;
+
 	logic [31:0] Readdata;
 
     //---------------------------------------------------------------------
@@ -509,6 +592,16 @@ module microcomputer #(
 
 
 
+		end else if (SW[5:1] == 5'b11010) begin // SD test: the card's answer to CMD0 (01 = healthy card, FF = no answer)
+			plusone  = sd1_r1[3:0];
+			plusone1 = sd1_r1[7:4];
+			plusone2 = 4'b0000;
+			plusone3 = 4'b0000;
+			plusone4 = 4'b0000;
+			plusone5 = {sd1_finished, sd1_got_response, 2'b00}; // 1_1=card answered, 1_0=no answer, 0_x=still running
+
+
+
 		end else begin
 			plusone  = 4'b0000;
 			plusone1 = 4'b0000;
@@ -655,16 +748,42 @@ module microcomputer #(
 		else if (memory_write && is_led_region)
 			led_reg <= Writedata[6:0];
 	end
-	
-	// LEDR[0] = test finished and passed
-	// LEDR[1] = test finished and failed
-	// LEDR[2] = in the retention wait between writing and reading back
-	// LEDR[9:3] = LED register (the CPU's SDRAM test writes 1 / 3 / 5)
-	assign LEDR[0] = test_finished && test_passed;
-	assign LEDR[1] = test_finished && !test_passed;
-	assign LEDR[2] = test_retention_wait;
-	assign LEDR[9:3] = led_reg;
 
+	// SD card --------------------------------------------------------------------
+	// Sends CMD0 once after reset and keeps the card's answer (R1).
+	// 0x01 = a card is there and woke up. 0xFF = no answer: check wiring and pins.
+	sd_cmd0_test SD_CMD0 (
+		.clock        (CLOCK_50),
+		.reset        (reset),
+		.finished     (sd1_finished),
+		.got_response (sd1_got_response),
+		.r1           (sd1_r1),
+		.sd_cs_n      (SD_CS_N),
+		.sd_sck       (SD_SCK),
+		.sd_mosi      (SD_MOSI),
+		.sd_miso      (SD_MISO)
+	);
+	
+	// LEDs. SW[7] = 0 (normal):
+	//	LEDR[0] = test finished and passed
+	//	LEDR[1] = test finished and failed
+	//	LEDR[2] = in the retention wait between writing and reading back
+	//	LEDR[9:3] = LED register (the CPU's SDRAM test writes 1 / 3 / 5)
+	// SW[7] = 1:
+	//	LEDR[7:0] = the card's answer to CMD0 (the pattern 00000001 = healthy card)
+	// 	LEDR[8]   = the card answered     LEDR[9] = test finished
+	always_comb begin
+		if (SW[7]) begin
+			LEDR[7:0] = sd1_r1;
+			LEDR[8] = sd1_got_response;
+			LEDR[9] = sd1_finished;
+		end else begin
+			LEDR[0] = test_finished && test_passed;
+			LEDR[1] = test_finished && !test_passed;
+			LEDR[2] = test_retention_wait;
+			LEDR[9:3] = led_reg;
+		end
+	end
 
 
 endmodule
